@@ -1,1 +1,13 @@
 project_id = "ywrbrubxppxdizbzfovo"
+
+[functions.token]
+verify_jwt = false
+
+[functions.process_transcript]
+verify_jwt = true
+
+[functions.generate_materials]
+verify_jwt = true
+
+[functions.log_partial]
+verify_jwt = true
