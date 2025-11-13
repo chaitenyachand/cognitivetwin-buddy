@@ -2,11 +2,16 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import Navbar from "@/components/Navbar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, BookOpen, Brain, TrendingUp } from "lucide-react";
+import Sidebar from "@/components/Sidebar";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import LearningActivityCalendar from "@/components/LearningActivityCalendar";
+import TopicProgressCard from "@/components/TopicProgressCard";
+import ProgressChart from "@/components/ProgressChart";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Flame } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -58,98 +63,160 @@ const Dashboard = () => {
     }
   };
 
+  // Mock data for demo - replace with real data from database
+  const mockTopics = [
+    { name: "Blockchain", progress: 40 },
+    { name: "Generative AI", progress: 20 },
+    { name: "Artificial Intelligence", progress: 20 },
+  ];
+
+  const weakTopics = [
+    { name: "Linear Equations", subtopics: ["Applications", "Consensus Mechanisms", "Key Characteristics"] },
+    { name: "Generative AI", subtopics: ["GANs", "Transformer Models", "Generative Models", "VAEs", "Learning from Data", "Applications"] },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-primary/5 to-secondary/5">
-      <Navbar />
-      <div className="container mx-auto px-6 pt-24 pb-12">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-12">
-            <h1 className="text-4xl font-bold mb-2 gradient-text">
-              Welcome back, {user?.user_metadata?.name || "Student"}!
+    <div className="min-h-screen bg-background flex">
+      <Sidebar user={user} />
+      
+      {/* Main Content */}
+      <div className="flex-1 ml-64">
+        {/* Header */}
+        <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="px-8 py-6 flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-foreground">
+              Welcome, {user?.user_metadata?.name || "Student"}!
             </h1>
-            <p className="text-muted-foreground text-lg">
-              Ready to continue your learning journey?
-            </p>
+            <Badge variant="secondary" className="px-4 py-2 text-sm font-semibold">
+              <Flame className="w-4 h-4 mr-2 text-orange-500" />
+              0 Day Streak
+            </Badge>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            <Card className="hover-lift cursor-pointer border-2" onClick={() => navigate("/voice-tutor")}>
-              <CardHeader>
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-listening to-listening/70 flex items-center justify-center mb-4">
-                  <Mic className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle>Start Voice Session</CardTitle>
-                <CardDescription>
-                  Talk with your AI tutor in real-time
-                </CardDescription>
-              </CardHeader>
-            </Card>
+        {/* Tabs Content */}
+        <div className="px-8 py-6">
+          <Tabs defaultValue="dashboard" className="space-y-6">
+            <TabsList className="border-b border-border w-full justify-start rounded-none h-auto p-0 bg-transparent">
+              <TabsTrigger 
+                value="dashboard"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Dashboard
+              </TabsTrigger>
+              <TabsTrigger 
+                value="topics"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Topics
+              </TabsTrigger>
+              <TabsTrigger 
+                value="next-steps"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              >
+                Next Steps
+              </TabsTrigger>
+            </TabsList>
 
-            <Card className="hover-lift border-2">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center mb-4">
-                  <BookOpen className="w-6 h-6 text-white" />
-                </div>
-                <CardTitle>{topics.length}</CardTitle>
-                <CardDescription>Topics Covered</CardDescription>
-              </CardHeader>
-            </Card>
+            {/* Dashboard Tab */}
+            <TabsContent value="dashboard" className="space-y-6 mt-6">
+              <LearningActivityCalendar />
 
-            <Card className="hover-lift border-2">
-              <CardHeader>
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent to-accent/70 flex items-center justify-center mb-4">
-                  <TrendingUp className="w-6 h-6 text-accent-foreground" />
-                </div>
-                <CardTitle>Progress</CardTitle>
-                <CardDescription>Track your learning journey</CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
-
-          <Card className="border-2">
-            <CardHeader>
-              <CardTitle>Recent Topics</CardTitle>
-              <CardDescription>Your latest learning sessions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-muted-foreground">Loading...</p>
-              ) : topics.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Topics Covered */}
                 <div className="space-y-4">
-                  {topics.map((topic) => (
-                    <div
-                      key={topic.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                          <Brain className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">{topic.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(topic.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm">View</Button>
-                    </div>
+                  <h2 className="text-xl font-bold text-foreground">Topics Covered</h2>
+                  {mockTopics.map((topic, index) => (
+                    <TopicProgressCard key={index} topic={topic.name} progress={topic.progress} />
                   ))}
                 </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Brain className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground mb-4">No topics yet</p>
-                  <Button
-                    onClick={() => navigate("/voice-tutor")}
-                    className="bg-gradient-to-r from-primary to-secondary"
-                  >
-                    Start Learning
-                  </Button>
+
+                {/* Progress Chart */}
+                <ProgressChart />
+              </div>
+            </TabsContent>
+
+            {/* Topics Tab */}
+            <TabsContent value="topics" className="space-y-6 mt-6">
+              <h2 className="text-2xl font-bold text-foreground">Your Learning History (Per-Topic Details)</h2>
+              
+              {mockTopics.map((topic, index) => (
+                <Card key={index}>
+                  <CardContent className="pt-6">
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="text-xl font-bold text-foreground mb-2">{topic.name}</h3>
+                        <p className="text-sm text-muted-foreground">Started: 2025-11-06</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-foreground">Topic-Specific Progress</p>
+                          <p className="text-2xl font-bold text-primary">{topic.progress}%</p>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full transition-all" 
+                              style={{ width: `${topic.progress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">0% 100%</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-foreground">Best Score</p>
+                          <p className="text-2xl font-bold text-primary text-right">{topic.progress}%</p>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full transition-all" 
+                              style={{ width: `${topic.progress}%` }}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground text-right">0% 100%</p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Button variant="secondary" className="w-full">View Summary</Button>
+                        <Button variant="secondary" className="w-full">View Mind Map</Button>
+                        <Button variant="secondary" className="w-full">View Flashcards</Button>
+                        <Button variant="secondary" className="w-full">Formula Sheet</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </TabsContent>
+
+            {/* Next Steps Tab */}
+            <TabsContent value="next-steps" className="space-y-6 mt-6">
+              <h2 className="text-2xl font-bold text-foreground">Next Steps</h2>
+              
+              <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                <CardContent className="pt-6">
+                  <p className="text-sm text-yellow-900 dark:text-yellow-200">
+                    💡 Focus on reviewing your weak topics below:
+                  </p>
+                </CardContent>
+              </Card>
+
+              {weakTopics.map((topic, index) => (
+                <div key={index} className="space-y-4">
+                  <h3 className="text-xl font-bold text-foreground">{topic.name}</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {topic.subtopics.map((subtopic, subIndex) => (
+                      <Button 
+                        key={subIndex} 
+                        variant="secondary" 
+                        className="w-full"
+                      >
+                        {subtopic}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              ))}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
