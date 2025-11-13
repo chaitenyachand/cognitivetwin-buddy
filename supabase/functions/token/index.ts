@@ -1,141 +1,167 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// Import pako for zlib compression
+import pako from "https://esm.sh/pako@2.1.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Deno-native Agora AccessToken2 Builder
-class AgoraAccessToken2 {
+// Packing utilities (little-endian)
+function packUint16(n: number): Uint8Array {
+  const buf = new Uint8Array(2);
+  buf[0] = n & 0xff;
+  buf[1] = (n >> 8) & 0xff;
+  return buf;
+}
+
+function packUint32(n: number): Uint8Array {
+  const buf = new Uint8Array(4);
+  buf[0] = n & 0xff;
+  buf[1] = (n >> 8) & 0xff;
+  buf[2] = (n >> 16) & 0xff;
+  buf[3] = (n >> 24) & 0xff;
+  return buf;
+}
+
+function packString(data: Uint8Array): Uint8Array {
+  const len = packUint16(data.length);
+  return concatBuffers(len, data);
+}
+
+function packStringText(str: string): Uint8Array {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(str);
+  return packString(bytes);
+}
+
+function packMapUint32(map: Record<number, number>): Uint8Array {
+  const entries = Object.entries(map).map(([k, v]) => [parseInt(k), v]);
+  const len = packUint16(entries.length);
+  
+  const parts = [len];
+  for (const [k, v] of entries) {
+    parts.push(packUint16(k));
+    parts.push(packUint32(v));
+  }
+  
+  return concatBuffers(...parts);
+}
+
+function concatBuffers(...buffers: Uint8Array[]): Uint8Array {
+  const totalLength = buffers.reduce((sum, buf) => sum + buf.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const buf of buffers) {
+    result.set(buf, offset);
+    offset += buf.length;
+  }
+  return result;
+}
+
+async function hmacSign(key: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+  // Convert to ArrayBuffer
+  const keyBuffer = new Uint8Array(key).buffer as ArrayBuffer;
+  const dataBuffer = new Uint8Array(data).buffer as ArrayBuffer;
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyBuffer,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, dataBuffer);
+  return new Uint8Array(signature);
+}
+
+class ServiceRtc {
+  static kServiceType = 1;
+  static kPrivilegeJoinChannel = 1;
+  static kPrivilegePublishAudioStream = 2;
+  static kPrivilegePublishVideoStream = 3;
+  static kPrivilegePublishDataStream = 4;
+
+  private channelName: string;
+  private uid: string;
+  private privileges: Record<number, number> = {};
+
+  constructor(channelName: string, uid: number | string) {
+    this.channelName = channelName;
+    this.uid = uid === 0 ? '' : String(uid);
+  }
+
+  addPrivilege(privilege: number, expire: number) {
+    this.privileges[privilege] = expire;
+  }
+
+  pack(): Uint8Array {
+    const type = packUint16(ServiceRtc.kServiceType);
+    const privs = packMapUint32(this.privileges);
+    const channel = packStringText(this.channelName);
+    const uidPacked = packStringText(this.uid);
+    
+    return concatBuffers(type, privs, channel, uidPacked);
+  }
+}
+
+class AccessToken {
   private appId: string;
-  private appCertificate: string;
+  private appCert: string;
+  private issueTs: number;
+  private expire: number;
+  private salt: number;
+  private services: Map<number, ServiceRtc> = new Map();
 
-  constructor(appId: string, appCertificate: string) {
+  constructor(appId: string, appCert: string, expire: number) {
     this.appId = appId;
-    this.appCertificate = appCertificate;
+    this.appCert = appCert;
+    this.issueTs = Math.floor(Date.now() / 1000);
+    this.expire = expire;
+    this.salt = crypto.getRandomValues(new Uint32Array(1))[0] % 99999999 + 1;
   }
 
-  async buildRtcToken(
-    channelName: string,
-    uid: number,
-    privilegeExpiredTs: number
-  ): Promise<string> {
+  addService(service: ServiceRtc) {
+    this.services.set(ServiceRtc.kServiceType, service);
+  }
+
+  async build(): Promise<string> {
     const encoder = new TextEncoder();
+    const appCertBytes = encoder.encode(this.appCert);
     
-    // Build message (following Agora AccessToken2 spec)
-    const salt = crypto.getRandomValues(new Uint32Array(1))[0];
-    const timestamp = Math.floor(Date.now() / 1000);
-    
-    // Service type: 1 for RTC
-    const serviceType = 1;
-    
-    // Pack privileges (RTC privileges)
-    const privileges: any = {
-      1: privilegeExpiredTs, // JOIN_CHANNEL
-      2: privilegeExpiredTs, // PUBLISH_AUDIO_STREAM
-      3: privilegeExpiredTs, // PUBLISH_VIDEO_STREAM
-      4: privilegeExpiredTs, // PUBLISH_DATA_STREAM
-    };
-    
-    // Create message buffer
-    const message = this.packMessage(
-      this.appId,
-      channelName,
-      uid,
-      salt,
-      timestamp,
-      privilegeExpiredTs,
-      privileges
+    // Build signing key
+    let signing = await hmacSign(packUint32(this.issueTs), appCertBytes);
+    signing = await hmacSign(packUint32(this.salt), signing);
+
+    // Build signing info
+    const signingInfo = concatBuffers(
+      packStringText(this.appId),
+      packUint32(this.issueTs),
+      packUint32(this.expire),
+      packUint32(this.salt),
+      packUint16(this.services.size)
     );
-    
-    // Sign message
-    const signature = await this.hmacSign(message);
-    
-    // Build final token: version + appId + signature + message (all base64)
-    const signatureBase64 = this.uint8ArrayToBase64(signature);
-    const messageBase64 = this.uint8ArrayToBase64(message);
-    
-    return `006${this.appId}${signatureBase64}${messageBase64}`;
-  }
 
-  private packMessage(
-    appId: string,
-    channelName: string,
-    uid: number,
-    salt: number,
-    timestamp: number,
-    expireTs: number,
-    privileges: any
-  ): Uint8Array {
-    // Estimate buffer size
-    const encoder = new TextEncoder();
-    const channelBytes = encoder.encode(channelName);
-    
-    // Build message parts
-    const parts: number[] = [];
-    
-    // Add salt (4 bytes)
-    parts.push(...this.uint32ToArray(salt));
-    
-    // Add timestamp (4 bytes)
-    parts.push(...this.uint32ToArray(timestamp));
-    
-    // Add expire timestamp (4 bytes)
-    parts.push(...this.uint32ToArray(expireTs));
-    
-    // Add channel name length (2 bytes) + channel name
-    parts.push(...this.uint16ToArray(channelBytes.length));
-    parts.push(...Array.from(channelBytes));
-    
-    // Add uid (4 bytes)
-    parts.push(...this.uint32ToArray(uid));
-    
-    return new Uint8Array(parts);
-  }
-
-  private async hmacSign(message: Uint8Array): Promise<Uint8Array> {
-    const encoder = new TextEncoder();
-    const keyData = encoder.encode(this.appCertificate);
-    
-    // Import key for HMAC-SHA256
-    const key = await crypto.subtle.importKey(
-      'raw',
-      keyData,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    
-    // Sign the message
-    const messageBuffer = new Uint8Array(message).buffer as ArrayBuffer;
-    const signatureBuffer = await crypto.subtle.sign('HMAC', key, messageBuffer);
-    
-    // Return first 32 bytes of signature
-    return new Uint8Array(signatureBuffer).slice(0, 32);
-  }
-
-  private uint32ToArray(num: number): number[] {
-    return [
-      (num >>> 24) & 0xff,
-      (num >>> 16) & 0xff,
-      (num >>> 8) & 0xff,
-      num & 0xff,
-    ];
-  }
-
-  private uint16ToArray(num: number): number[] {
-    return [
-      (num >>> 8) & 0xff,
-      num & 0xff,
-    ];
-  }
-
-  private uint8ArrayToBase64(bytes: Uint8Array): string {
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-      binary += String.fromCharCode(bytes[i]);
+    const servicePacks: Uint8Array[] = [];
+    for (const service of this.services.values()) {
+      servicePacks.push(service.pack());
     }
-    return btoa(binary);
+
+    const fullSigningInfo = concatBuffers(signingInfo, ...servicePacks);
+    
+    // Sign
+    const signature = await hmacSign(signing, fullSigningInfo);
+    
+    // Combine signature + signing info
+    const content = concatBuffers(packString(signature), fullSigningInfo);
+    
+    // Compress with zlib
+    const compressed = pako.deflate(content);
+    
+    // Base64 encode
+    const base64 = btoa(String.fromCharCode(...compressed));
+    
+    return '007' + base64;
   }
 }
 
@@ -158,26 +184,29 @@ serve(async (req) => {
       throw new Error('Agora credentials not configured');
     }
 
-    console.log('Generating token for appId:', appId.substring(0, 8) + '...');
-
     const expirationTimeInSeconds = 24 * 60 * 60; // 24h
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
 
     const numericUid = Number.isFinite(Number(uid)) ? Number(uid) : 0;
 
-    // Generate RTC token
-    const tokenBuilder = new AgoraAccessToken2(appId, appCertificate);
-    const token = await tokenBuilder.buildRtcToken(
-      channelName,
-      numericUid,
-      privilegeExpiredTs
-    );
+    // Build token
+    const token = new AccessToken(appId, appCertificate, expirationTimeInSeconds);
+    const serviceRtc = new ServiceRtc(channelName, numericUid);
+    
+    serviceRtc.addPrivilege(ServiceRtc.kPrivilegeJoinChannel, privilegeExpiredTs);
+    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishAudioStream, privilegeExpiredTs);
+    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishVideoStream, privilegeExpiredTs);
+    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishDataStream, privilegeExpiredTs);
+    
+    token.addService(serviceRtc);
+    
+    const generatedToken = await token.build();
 
-    console.log('Generated token (006...)', token.substring(0, 50) + '...');
+    console.log('Generated token (007...)', generatedToken.substring(0, 50) + '...');
 
     return new Response(
-      JSON.stringify({ token, appId, channelName, uid: numericUid }),
+      JSON.stringify({ token: generatedToken, appId, channelName, uid: numericUid }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
