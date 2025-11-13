@@ -122,6 +122,12 @@ export const useVoiceSession = () => {
                 // Speak AI response
                 setVoiceState("speaking");
                 await speakText(aiResponse.ai_reply);
+                
+                // If materials were generated, speak the explanation
+                if (aiResponse.materials_generated && aiResponse.explanation) {
+                  await speakText(aiResponse.explanation);
+                }
+                
                 setVoiceState("listening");
               }
             } catch (error) {
@@ -171,6 +177,34 @@ export const useVoiceSession = () => {
         return;
       }
 
+      setVoiceState("speaking");
+      
+      // Send initial greeting
+      try {
+        const { data: greetingResponse } = await supabase.functions.invoke('process_transcript', {
+          body: {
+            transcript: '__INITIAL_GREETING__',
+            sessionId: voiceSession.id,
+            persona,
+            userName
+          }
+        });
+
+        if (greetingResponse?.ai_reply) {
+          await supabase.functions.invoke('log_partial', {
+            body: {
+              sessionId: voiceSession.id,
+              text: greetingResponse.ai_reply,
+              speaker: 'ai'
+            }
+          });
+          
+          await speakText(greetingResponse.ai_reply);
+        }
+      } catch (error) {
+        console.error('Error with initial greeting:', error);
+      }
+      
       setVoiceState("listening");
       toast({
         title: "Session Started",
@@ -233,6 +267,20 @@ export const useVoiceSession = () => {
       utterance.rate = 0.9;
       utterance.pitch = 1.0;
       utterance.volume = 1.0;
+      
+      // Select female voice
+      const voices = window.speechSynthesis.getVoices();
+      const femaleVoice = voices.find(voice => 
+        voice.name.includes('Female') || 
+        voice.name.includes('Samantha') || 
+        voice.name.includes('Victoria') ||
+        voice.name.includes('Karen') ||
+        voice.name.includes('Google UK English Female') ||
+        voice.name.includes('Microsoft Zira')
+      );
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+      }
       
       utterance.onend = () => resolve();
       utterance.onerror = () => resolve();
