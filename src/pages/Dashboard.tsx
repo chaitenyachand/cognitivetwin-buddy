@@ -19,6 +19,7 @@ const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [topics, setTopics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activityData, setActivityData] = useState<any[]>([]);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,7 +27,7 @@ const Dashboard = () => {
         navigate("/auth");
       } else {
         setUser(session.user);
-        loadTopics(session.user.id);
+        loadDashboardData(session.user.id);
       }
     });
 
@@ -41,20 +42,30 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const loadTopics = async (userId: string) => {
+  const loadDashboardData = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      // Load topics with progress
+      const { data: topicsData, error: topicsError } = await supabase
         .from("topics")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(5);
+        .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setTopics(data || []);
+      if (topicsError) throw topicsError;
+      setTopics(topicsData || []);
+
+      // Load activity log for calendar
+      const { data: activityLogData, error: activityError } = await supabase
+        .from("activity_log")
+        .select("*")
+        .eq("user_id", userId)
+        .order("activity_date", { ascending: false });
+
+      if (activityError) throw activityError;
+      setActivityData(activityLogData || []);
     } catch (error: any) {
       toast({
-        title: "Error loading topics",
+        title: "Error loading dashboard data",
         description: error.message,
         variant: "destructive",
       });
@@ -62,18 +73,6 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
-
-  // Mock data for demo - replace with real data from database
-  const mockTopics = [
-    { name: "Blockchain", progress: 40 },
-    { name: "Generative AI", progress: 20 },
-    { name: "Artificial Intelligence", progress: 20 },
-  ];
-
-  const weakTopics = [
-    { name: "Linear Equations", subtopics: ["Applications", "Consensus Mechanisms", "Key Characteristics"] },
-    { name: "Generative AI", subtopics: ["GANs", "Transformer Models", "Generative Models", "VAEs", "Learning from Data", "Applications"] },
-  ];
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -126,9 +125,19 @@ const Dashboard = () => {
                 {/* Topics Covered */}
                 <div className="space-y-4">
                   <h2 className="text-xl font-bold text-foreground">Topics Covered</h2>
-                  {mockTopics.map((topic, index) => (
-                    <TopicProgressCard key={index} topic={topic.name} progress={topic.progress} />
-                  ))}
+                  {loading ? (
+                    <p className="text-muted-foreground">Loading topics...</p>
+                  ) : topics.length === 0 ? (
+                    <Card>
+                      <CardContent className="pt-6 text-center text-muted-foreground">
+                        <p>No topics yet. Start your learning journey by creating a new topic!</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    topics.slice(0, 5).map((topic) => (
+                      <TopicProgressCard key={topic.id} topic={topic.name} progress={topic.progress} />
+                    ))
+                  )}
                 </div>
 
                 {/* Progress Chart */}
@@ -140,81 +149,102 @@ const Dashboard = () => {
             <TabsContent value="topics" className="space-y-6 mt-6">
               <h2 className="text-2xl font-bold text-foreground">Your Learning History (Per-Topic Details)</h2>
               
-              {mockTopics.map((topic, index) => (
-                <Card key={index}>
-                  <CardContent className="pt-6">
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="text-xl font-bold text-foreground mb-2">{topic.name}</h3>
-                        <p className="text-sm text-muted-foreground">Started: 2025-11-06</p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-8">
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold text-foreground">Topic-Specific Progress</p>
-                          <p className="text-2xl font-bold text-primary">{topic.progress}%</p>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-primary h-2 rounded-full transition-all" 
-                              style={{ width: `${topic.progress}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground">0% 100%</p>
-                        </div>
-
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold text-foreground">Best Score</p>
-                          <p className="text-2xl font-bold text-primary text-right">{topic.progress}%</p>
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-primary h-2 rounded-full transition-all" 
-                              style={{ width: `${topic.progress}%` }}
-                            />
-                          </div>
-                          <p className="text-xs text-muted-foreground text-right">0% 100%</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <Button variant="secondary" className="w-full">View Summary</Button>
-                        <Button variant="secondary" className="w-full">View Mind Map</Button>
-                        <Button variant="secondary" className="w-full">View Flashcards</Button>
-                        <Button variant="secondary" className="w-full">Formula Sheet</Button>
-                      </div>
-                    </div>
+              {loading ? (
+                <p className="text-muted-foreground">Loading topics...</p>
+              ) : topics.length === 0 ? (
+                <Card>
+                  <CardContent className="pt-6 text-center text-muted-foreground">
+                    <p>No topics yet. Start your learning journey by creating a new topic!</p>
                   </CardContent>
                 </Card>
-              ))}
+              ) : (
+                topics.map((topic) => (
+                  <Card key={topic.id}>
+                    <CardContent className="pt-6">
+                      <div className="space-y-6">
+                        <div>
+                          <h3 className="text-xl font-bold text-foreground mb-2">{topic.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Started: {new Date(topic.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8">
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold text-foreground">Topic-Specific Progress</p>
+                            <p className="text-2xl font-bold text-primary">{topic.progress}%</p>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div 
+                                className="bg-primary h-2 rounded-full transition-all" 
+                                style={{ width: `${topic.progress}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground">0% 100%</p>
+                          </div>
+
+                          <div className="space-y-2">
+                            <p className="text-sm font-semibold text-foreground">Best Score</p>
+                            <p className="text-2xl font-bold text-primary text-right">{topic.best_score}%</p>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div 
+                                className="bg-primary h-2 rounded-full transition-all" 
+                                style={{ width: `${topic.best_score}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-muted-foreground text-right">0% 100%</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <Button variant="secondary" className="w-full">View Summary</Button>
+                          <Button variant="secondary" className="w-full">View Mind Map</Button>
+                          <Button variant="secondary" className="w-full">View Flashcards</Button>
+                          <Button variant="secondary" className="w-full">Formula Sheet</Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </TabsContent>
 
             {/* Next Steps Tab */}
             <TabsContent value="next-steps" className="space-y-6 mt-6">
               <h2 className="text-2xl font-bold text-foreground">Next Steps</h2>
               
-              <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-                <CardContent className="pt-6">
-                  <p className="text-sm text-yellow-900 dark:text-yellow-200">
-                    💡 Focus on reviewing your weak topics below:
-                  </p>
-                </CardContent>
-              </Card>
+              {loading ? (
+                <p className="text-muted-foreground">Loading recommendations...</p>
+              ) : topics.length === 0 ? (
+                <Card>
+                  <CardContent className="pt-6 text-center text-muted-foreground">
+                    <p>Complete some topics and quizzes to get personalized recommendations!</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                    <CardContent className="pt-6">
+                      <p className="text-sm text-yellow-900 dark:text-yellow-200">
+                        💡 Review topics where you scored below 70% to improve your understanding
+                      </p>
+                    </CardContent>
+                  </Card>
 
-              {weakTopics.map((topic, index) => (
-                <div key={index} className="space-y-4">
-                  <h3 className="text-xl font-bold text-foreground">{topic.name}</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {topic.subtopics.map((subtopic, subIndex) => (
-                      <Button 
-                        key={subIndex} 
-                        variant="secondary" 
-                        className="w-full"
-                      >
-                        {subtopic}
-                      </Button>
+                  {topics
+                    .filter(topic => topic.best_score < 70)
+                    .map((topic) => (
+                      <div key={topic.id} className="space-y-4">
+                        <h3 className="text-xl font-bold text-foreground">{topic.name}</h3>
+                        <p className="text-sm text-muted-foreground">Best Score: {topic.best_score}%</p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          <Button variant="secondary" className="w-full">Review Summary</Button>
+                          <Button variant="secondary" className="w-full">Practice Quiz</Button>
+                          <Button variant="secondary" className="w-full">View Flashcards</Button>
+                        </div>
+                      </div>
                     ))}
-                  </div>
-                </div>
-              ))}
+                </>
+              )}
             </TabsContent>
           </Tabs>
         </div>

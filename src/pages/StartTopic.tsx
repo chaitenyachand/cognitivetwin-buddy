@@ -17,6 +17,8 @@ const StartTopic = () => {
   const [user, setUser] = useState<User | null>(null);
   const [topicInput, setTopicInput] = useState("");
   const [inputMethod, setInputMethod] = useState("type");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showVoiceSession, setShowVoiceSession] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,7 +30,7 @@ const StartTopic = () => {
     });
   }, [navigate]);
 
-  const handleGenerateModule = () => {
+  const handleGenerateModule = async () => {
     if (!topicInput.trim()) {
       toast({
         title: "Please enter a topic",
@@ -38,16 +40,45 @@ const StartTopic = () => {
       return;
     }
 
-    toast({
-      title: "Generating learning module",
-      description: `Creating materials for ${topicInput}...`,
-    });
-    
-    // Here you would call your backend to generate the learning module
-    // For now, just show success
-    setTimeout(() => {
+    setIsGenerating(true);
+
+    try {
+      // Create topic in database
+      const { data: topicData, error: topicError } = await supabase
+        .from("topics")
+        .insert({
+          user_id: user?.id,
+          name: topicInput,
+          progress: 0,
+          best_score: 0,
+        })
+        .select()
+        .single();
+
+      if (topicError) throw topicError;
+
+      // Log activity
+      await supabase.from("activity_log").insert({
+        user_id: user?.id,
+        topic_id: topicData.id,
+        activity_type: "topic_created",
+      });
+
+      toast({
+        title: "Topic created!",
+        description: "You can now generate learning materials for this topic.",
+      });
+
       navigate("/dashboard");
-    }, 2000);
+    } catch (error: any) {
+      toast({
+        title: "Error creating topic",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -77,12 +108,8 @@ const StartTopic = () => {
                     <Label htmlFor="pdf" className="cursor-pointer">Upload a PDF</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="notes" id="notes" />
-                    <Label htmlFor="notes" className="cursor-pointer">Upload Handwritten Notes (PDF)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="list" id="list" />
-                    <Label htmlFor="list" className="cursor-pointer">Choose from a list</Label>
+                    <RadioGroupItem value="voice" id="voice" />
+                    <Label htmlFor="voice" className="cursor-pointer">Use Voice Session</Label>
                   </div>
                 </RadioGroup>
               </div>
@@ -100,19 +127,47 @@ const StartTopic = () => {
                 </div>
               )}
 
-              {inputMethod !== "type" && (
+              {inputMethod === "pdf" && (
                 <div className="p-8 border-2 border-dashed border-border rounded-lg text-center text-muted-foreground">
-                  <p>This feature is coming soon!</p>
+                  <p>PDF upload feature coming soon!</p>
                 </div>
               )}
 
-              <Button 
-                size="lg" 
-                className="w-full md:w-auto"
-                onClick={handleGenerateModule}
-              >
-                Generate Learning Module
-              </Button>
+              {inputMethod === "voice" && (
+                <div className="p-8 border-2 border-border rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Start a voice session with the AI tutor to learn about your topic through conversation.
+                  </p>
+                  <Button 
+                    size="lg" 
+                    className="w-full"
+                    onClick={() => {
+                      if (!topicInput.trim()) {
+                        toast({
+                          title: "Please enter a topic",
+                          description: "Enter a topic name before starting a voice session",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      navigate("/voice-tutor", { state: { topic: topicInput } });
+                    }}
+                  >
+                    Start Voice Session
+                  </Button>
+                </div>
+              )}
+
+              {inputMethod === "type" && (
+                <Button 
+                  size="lg" 
+                  className="w-full md:w-auto"
+                  onClick={handleGenerateModule}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? "Creating Topic..." : "Create Topic"}
+                </Button>
+              )}
             </CardContent>
           </Card>
         </div>

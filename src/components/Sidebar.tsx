@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Home, BookOpen, MessageSquare, Mic, LogOut, Plus } from "lucide-react";
+import { Home, MessageSquare, LogOut, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
@@ -25,7 +25,7 @@ const Sidebar = ({ user }: SidebarProps) => {
   const navItems = [
     { path: "/dashboard", icon: Home, label: "Dashboard" },
     { path: "/start-topic", icon: Plus, label: "Start New Topic" },
-    { path: "/qa", icon: MessageSquare, label: "Ask a General Question" },
+    { path: "/qa", icon: MessageSquare, label: "Q&A" },
   ];
 
   return (
@@ -52,21 +52,6 @@ const Sidebar = ({ user }: SidebarProps) => {
             {item.label}
           </Button>
         ))}
-
-        {/* AI Voice Tutor Section */}
-        <div className="pt-6">
-          <p className="text-xs font-semibold text-muted-foreground px-3 mb-2 flex items-center">
-            <span className="text-lg mr-2">✨</span> AI Voice Tutor
-          </p>
-          <Button
-            variant="default"
-            className="w-full justify-start bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-            onClick={() => navigate("/voice-tutor")}
-          >
-            <Mic className="w-5 h-5 mr-3" />
-            Start Socratic Session
-          </Button>
-        </div>
       </nav>
 
       {/* Logout Button */}
