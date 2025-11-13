@@ -96,7 +96,14 @@ Respond with JSON format:
     }
 
     const aiData = await response.json();
-    const result = JSON.parse(aiData.choices[0].message.content);
+    
+    // Strip markdown code blocks if present
+    let content = aiData.choices[0].message.content;
+    if (content.includes('```')) {
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    }
+    
+    const result = JSON.parse(content);
 
     console.log('AI response:', result);
 
