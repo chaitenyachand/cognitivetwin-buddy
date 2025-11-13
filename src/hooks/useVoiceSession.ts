@@ -42,19 +42,17 @@ export const useVoiceSession = () => {
       if (sessionError) throw sessionError;
       setSessionId(voiceSession.id);
 
-      // Get Agora token from backend
-      const { data: tokenData, error: tokenError } = await supabase.functions.invoke('token', {
-        body: { 
-          channelName: `session-${voiceSession.id}`,
-          uid: 0
-        }
-      });
-
-      if (tokenError) throw tokenError;
+      // Use provided temporary token for testing
+      const tokenData = {
+        appId: "917bf619376e4cffa7d95a430717bc86",
+        token: "007eJxTYGgNaMxpP5Sces/eVvHl9E+50pb3bs07+2Bumn/suq7rzVMUGCwNzZPSzAwtjc3NUk2S09ISzVMsTRNNjA3MgRLJFmYflMQyGwIZGToi/jMyMkAgiM/LkJyfV5aYGe+UX5ZV4sfAAAAIpCSX",
+        channelName: `session-${voiceSession.id}`,
+        uid: 0
+      };
 
       // Initialize Agora client
       agoraClient.current = new AgoraVoiceClient();
-      console.log('Agora tokenData from edge:', tokenData);
+      console.log('Using test token with appId:', tokenData.appId);
       await agoraClient.current.join({
         appId: tokenData.appId,
         token: tokenData.token,
