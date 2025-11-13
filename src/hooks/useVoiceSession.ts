@@ -54,6 +54,7 @@ export const useVoiceSession = () => {
 
       // Initialize Agora client
       agoraClient.current = new AgoraVoiceClient();
+      console.log('Agora tokenData from edge:', tokenData);
       await agoraClient.current.join({
         appId: tokenData.appId,
         token: tokenData.token,
