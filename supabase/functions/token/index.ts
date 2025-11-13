@@ -5,8 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Deno-native Agora Token Builder using WebCrypto
-class AgoraTokenBuilder {
+// Deno-native Agora AccessToken2 Builder
+class AgoraAccessToken2 {
   private appId: string;
   private appCertificate: string;
 
@@ -15,48 +15,82 @@ class AgoraTokenBuilder {
     this.appCertificate = appCertificate;
   }
 
-  async buildTokenWithUid(
+  async buildRtcToken(
     channelName: string,
     uid: number,
-    role: number,
     privilegeExpiredTs: number
   ): Promise<string> {
-    const message = await this.packMessage(channelName, uid, privilegeExpiredTs);
-    const signature = await this.hmacSign(message);
-    
-    // Build token with "006" prefix (AccessToken2 format)
-    const content = this.uint8ArrayToBase64(new Uint8Array([...message, ...signature]));
-    return `006${this.appId}${content}`;
-  }
-
-  private async packMessage(
-    channelName: string,
-    uid: number,
-    privilegeExpiredTs: number
-  ): Promise<Uint8Array> {
     const encoder = new TextEncoder();
     
-    // Pack format: appId + channelName + uid + privilegeExpiredTs
-    const appIdBytes = encoder.encode(this.appId);
-    const channelBytes = encoder.encode(channelName);
-    const uidBytes = this.uint32ToBytes(uid);
-    const tsBytes = this.uint32ToBytes(privilegeExpiredTs);
+    // Build message (following Agora AccessToken2 spec)
+    const salt = crypto.getRandomValues(new Uint32Array(1))[0];
+    const timestamp = Math.floor(Date.now() / 1000);
     
-    // Combine all parts
-    const message = new Uint8Array(
-      appIdBytes.length + channelBytes.length + uidBytes.length + tsBytes.length
+    // Service type: 1 for RTC
+    const serviceType = 1;
+    
+    // Pack privileges (RTC privileges)
+    const privileges: any = {
+      1: privilegeExpiredTs, // JOIN_CHANNEL
+      2: privilegeExpiredTs, // PUBLISH_AUDIO_STREAM
+      3: privilegeExpiredTs, // PUBLISH_VIDEO_STREAM
+      4: privilegeExpiredTs, // PUBLISH_DATA_STREAM
+    };
+    
+    // Create message buffer
+    const message = this.packMessage(
+      this.appId,
+      channelName,
+      uid,
+      salt,
+      timestamp,
+      privilegeExpiredTs,
+      privileges
     );
     
-    let offset = 0;
-    message.set(appIdBytes, offset);
-    offset += appIdBytes.length;
-    message.set(channelBytes, offset);
-    offset += channelBytes.length;
-    message.set(uidBytes, offset);
-    offset += uidBytes.length;
-    message.set(tsBytes, offset);
+    // Sign message
+    const signature = await this.hmacSign(message);
     
-    return message;
+    // Build final token: version + appId + signature + message (all base64)
+    const signatureBase64 = this.uint8ArrayToBase64(signature);
+    const messageBase64 = this.uint8ArrayToBase64(message);
+    
+    return `006${this.appId}${signatureBase64}${messageBase64}`;
+  }
+
+  private packMessage(
+    appId: string,
+    channelName: string,
+    uid: number,
+    salt: number,
+    timestamp: number,
+    expireTs: number,
+    privileges: any
+  ): Uint8Array {
+    // Estimate buffer size
+    const encoder = new TextEncoder();
+    const channelBytes = encoder.encode(channelName);
+    
+    // Build message parts
+    const parts: number[] = [];
+    
+    // Add salt (4 bytes)
+    parts.push(...this.uint32ToArray(salt));
+    
+    // Add timestamp (4 bytes)
+    parts.push(...this.uint32ToArray(timestamp));
+    
+    // Add expire timestamp (4 bytes)
+    parts.push(...this.uint32ToArray(expireTs));
+    
+    // Add channel name length (2 bytes) + channel name
+    parts.push(...this.uint16ToArray(channelBytes.length));
+    parts.push(...Array.from(channelBytes));
+    
+    // Add uid (4 bytes)
+    parts.push(...this.uint32ToArray(uid));
+    
+    return new Uint8Array(parts);
   }
 
   private async hmacSign(message: Uint8Array): Promise<Uint8Array> {
@@ -72,19 +106,28 @@ class AgoraTokenBuilder {
       ['sign']
     );
     
-    // Convert to ArrayBuffer for crypto.subtle
+    // Sign the message
     const messageBuffer = new Uint8Array(message).buffer as ArrayBuffer;
-    const signature = await crypto.subtle.sign('HMAC', key, messageBuffer);
-    return new Uint8Array(signature);
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, messageBuffer);
+    
+    // Return first 32 bytes of signature
+    return new Uint8Array(signatureBuffer).slice(0, 32);
   }
 
-  private uint32ToBytes(num: number): Uint8Array {
-    const bytes = new Uint8Array(4);
-    bytes[0] = (num >> 24) & 0xff;
-    bytes[1] = (num >> 16) & 0xff;
-    bytes[2] = (num >> 8) & 0xff;
-    bytes[3] = num & 0xff;
-    return bytes;
+  private uint32ToArray(num: number): number[] {
+    return [
+      (num >>> 24) & 0xff,
+      (num >>> 16) & 0xff,
+      (num >>> 8) & 0xff,
+      num & 0xff,
+    ];
+  }
+
+  private uint16ToArray(num: number): number[] {
+    return [
+      (num >>> 8) & 0xff,
+      num & 0xff,
+    ];
   }
 
   private uint8ArrayToBase64(bytes: Uint8Array): string {
@@ -115,22 +158,23 @@ serve(async (req) => {
       throw new Error('Agora credentials not configured');
     }
 
+    console.log('Generating token for appId:', appId.substring(0, 8) + '...');
+
     const expirationTimeInSeconds = 24 * 60 * 60; // 24h
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
 
     const numericUid = Number.isFinite(Number(uid)) ? Number(uid) : 0;
 
-    // Generate RTC token using native Deno implementation
-    const tokenBuilder = new AgoraTokenBuilder(appId, appCertificate);
-    const token = await tokenBuilder.buildTokenWithUid(
+    // Generate RTC token
+    const tokenBuilder = new AgoraAccessToken2(appId, appCertificate);
+    const token = await tokenBuilder.buildRtcToken(
       channelName,
       numericUid,
-      1, // RolePublisher
       privilegeExpiredTs
     );
 
-    console.log('Generated Agora RTC token (006...) for channel:', channelName);
+    console.log('Generated token (006...)', token.substring(0, 50) + '...');
 
     return new Response(
       JSON.stringify({ token, appId, channelName, uid: numericUid }),
