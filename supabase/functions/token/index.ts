@@ -185,8 +185,7 @@ serve(async (req) => {
     }
 
     const expirationTimeInSeconds = 24 * 60 * 60; // 24h
-    const currentTimestamp = Math.floor(Date.now() / 1000);
-    const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+    const privilegeSeconds = expirationTimeInSeconds; // AccessToken2 expects durations, not absolute timestamps
 
     const numericUid = Number.isFinite(Number(uid)) ? Number(uid) : 0;
 
@@ -194,10 +193,10 @@ serve(async (req) => {
     const token = new AccessToken(appId, appCertificate, expirationTimeInSeconds);
     const serviceRtc = new ServiceRtc(channelName, numericUid);
     
-    serviceRtc.addPrivilege(ServiceRtc.kPrivilegeJoinChannel, privilegeExpiredTs);
-    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishAudioStream, privilegeExpiredTs);
-    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishVideoStream, privilegeExpiredTs);
-    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishDataStream, privilegeExpiredTs);
+    serviceRtc.addPrivilege(ServiceRtc.kPrivilegeJoinChannel, privilegeSeconds);
+    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishAudioStream, privilegeSeconds);
+    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishVideoStream, privilegeSeconds);
+    serviceRtc.addPrivilege(ServiceRtc.kPrivilegePublishDataStream, privilegeSeconds);
     
     token.addService(serviceRtc);
     
