@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Volume2, Sparkles } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useVoiceSession, type Persona } from "@/hooks/useVoiceSession";
+import aiAvatar from "@/assets/ai-avatar.avif";
 
 const VoiceTutor = () => {
   const navigate = useNavigate();
+  const [userName, setUserName] = useState<string>("");
   const { 
     voiceState, 
     transcript, 
@@ -24,6 +26,10 @@ const VoiceTutor = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         navigate("/auth");
+      } else {
+        // Get user name from metadata
+        const name = session.user.user_metadata?.name || "Student";
+        setUserName(name);
       }
     });
   }, [navigate]);
@@ -91,21 +97,36 @@ const VoiceTutor = () => {
 
           <Card className="border-2 p-12">
             <div className="flex flex-col items-center gap-8">
-              <div
-                className={`w-48 h-48 rounded-full bg-${getStateColor()} flex items-center justify-center ${getStatePulseClass()} transition-all duration-300`}
-                style={{
-                  backgroundColor: `hsl(var(--${getStateColor()}))`,
-                }}
-              >
-                {voiceState === "idle" ? (
-                  <Mic className="w-24 h-24 text-white" />
-                ) : voiceState === "listening" ? (
-                  <Mic className="w-24 h-24 text-white" />
-                ) : voiceState === "thinking" ? (
-                  <Sparkles className="w-24 h-24 text-white" />
-                ) : (
-                  <Volume2 className="w-24 h-24 text-white" />
-                )}
+              <div className="relative">
+                <img 
+                  src={aiAvatar} 
+                  alt="AI Avatar" 
+                  className={`w-48 h-48 rounded-full object-cover ring-4 transition-all duration-300 ${
+                    voiceState === 'listening' ? 'ring-green-500 shadow-green-500/50 shadow-2xl' :
+                    voiceState === 'thinking' ? 'ring-amber-500 shadow-amber-500/50 shadow-2xl' :
+                    voiceState === 'speaking' ? 'ring-purple-500 shadow-purple-500/50 shadow-2xl' :
+                    'ring-gray-300'
+                  } ${getStatePulseClass()}`}
+                />
+                <div className="absolute -bottom-2 -right-2">
+                  {voiceState === "idle" ? (
+                    <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                      <MicOff className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                  ) : voiceState === "listening" ? (
+                    <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
+                      <Mic className="w-6 h-6 text-white" />
+                    </div>
+                  ) : voiceState === "thinking" ? (
+                    <div className="w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center animate-spin">
+                      <Sparkles className="w-6 h-6 text-white" />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center">
+                      <Volume2 className="w-6 h-6 text-white animate-pulse" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="text-center">
@@ -122,7 +143,7 @@ const VoiceTutor = () => {
                   <Button
                     size="lg"
                     className="bg-gradient-to-r from-primary to-secondary text-white px-8"
-                    onClick={startSession}
+                    onClick={() => startSession()}
                   >
                     <Mic className="w-5 h-5 mr-2" />
                     Start Session
@@ -149,7 +170,7 @@ const VoiceTutor = () => {
           </Card>
 
           <div className="mt-8 text-center text-sm text-muted-foreground">
-            <p>💡 Tip: Speak clearly and naturally. The AI will guide you through your learning journey.</p>
+            <p>💡 Tip: Ask for summaries, mindmaps, flashcards, quizzes, or formula sheets on any topic!</p>
           </div>
         </div>
       </div>

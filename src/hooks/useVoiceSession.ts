@@ -16,7 +16,7 @@ export const useVoiceSession = () => {
   const agoraClient = useRef<AgoraVoiceClient | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  const startSession = useCallback(async () => {
+  const startSession = useCallback(async (userName: string = "Student") => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -102,7 +102,8 @@ export const useVoiceSession = () => {
                 body: {
                   transcript: transcriptText.trim(),
                   sessionId: voiceSession.id,
-                  persona
+                  persona,
+                  userName
                 }
               });
 
