@@ -1,23 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Volume2, Sparkles } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-type VoiceState = "idle" | "listening" | "thinking" | "speaking";
-type Persona = "empathetic" | "encouraging" | "neutral" | "authoritative";
+import { useVoiceSession, type Persona } from "@/hooks/useVoiceSession";
 
 const VoiceTutor = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
-  const [persona, setPersona] = useState<Persona>("empathetic");
-  const [transcript, setTranscript] = useState<string>("");
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const { 
+    voiceState, 
+    transcript, 
+    sessionId, 
+    persona, 
+    setPersona, 
+    startSession, 
+    stopSession 
+  } = useVoiceSession();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -26,64 +27,6 @@ const VoiceTutor = () => {
       }
     });
   }, [navigate]);
-
-  const startVoiceSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data, error } = await supabase
-        .from("voice_sessions")
-        .insert({
-          user_id: session.user.id,
-          topic: "General Learning",
-          persona,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      setSessionId(data.id);
-      setVoiceState("listening");
-      
-      toast({
-        title: "Session Started",
-        description: "I'm listening! What would you like to learn today?",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const stopVoiceSession = async () => {
-    if (!sessionId) return;
-
-    try {
-      await supabase
-        .from("voice_sessions")
-        .update({ ended_at: new Date().toISOString() })
-        .eq("id", sessionId);
-
-      setVoiceState("idle");
-      setSessionId(null);
-      
-      toast({
-        title: "Session Ended",
-        description: "Great learning session!",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
 
   const getStateColor = () => {
     switch (voiceState) {
@@ -179,7 +122,7 @@ const VoiceTutor = () => {
                   <Button
                     size="lg"
                     className="bg-gradient-to-r from-primary to-secondary text-white px-8"
-                    onClick={startVoiceSession}
+                    onClick={startSession}
                   >
                     <Mic className="w-5 h-5 mr-2" />
                     Start Session
@@ -188,7 +131,7 @@ const VoiceTutor = () => {
                   <Button
                     size="lg"
                     variant="destructive"
-                    onClick={stopVoiceSession}
+                    onClick={stopSession}
                   >
                     <MicOff className="w-5 h-5 mr-2" />
                     End Session
