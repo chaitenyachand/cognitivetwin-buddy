@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { topicName, userId } = await req.json();
+    const { topicName, userId, materialType } = await req.json();
 
     if (!topicName || !userId) {
       throw new Error('topicName and userId are required');
@@ -55,10 +55,21 @@ Generate materials in this exact JSON format:
         "explanation": "Because..."
       }
     ]
-  }
+  },
+  "formula_sheet": {
+    "formulas": [
+      {
+        "name": "Formula Name",
+        "formula": "mathematical formula or key concept",
+        "description": "when and how to use it",
+        "example": "example application"
+      }
+    ]
+  },
+  "explanation": "A brief spoken explanation of what was generated (2-3 sentences)"
 }
 
-Create 5-7 mindmap nodes, 5-8 flashcards, and 4-6 quiz questions.`;
+Create 5-7 mindmap nodes, 5-8 flashcards, 4-6 quiz questions, and 5-7 key formulas or concepts.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -83,7 +94,14 @@ Create 5-7 mindmap nodes, 5-8 flashcards, and 4-6 quiz questions.`;
     }
 
     const aiData = await response.json();
-    const materials = JSON.parse(aiData.choices[0].message.content);
+    
+    // Strip markdown code blocks if present
+    let content = aiData.choices[0].message.content;
+    if (content.includes('```')) {
+      content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    }
+    
+    const materials = JSON.parse(content);
 
     // Save to database
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
