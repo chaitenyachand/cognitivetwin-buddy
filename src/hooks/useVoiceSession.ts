@@ -75,6 +75,11 @@ export const useVoiceSession = () => {
           const current = event.resultIndex;
           const transcriptText = event.results[current][0].transcript;
           
+          if (!transcriptText || !transcriptText.trim()) {
+            console.log('Empty transcript, skipping...');
+            return;
+          }
+          
           setTranscript(transcriptText);
           setVoiceState("listening");
 
@@ -82,39 +87,76 @@ export const useVoiceSession = () => {
           if (event.results[current].isFinal) {
             setVoiceState("thinking");
 
-            // Log partial transcript
-            await supabase.functions.invoke('log_partial', {
-              body: {
-                sessionId: voiceSession.id,
-                text: transcriptText,
-                speaker: 'user'
+            try {
+              // Log partial transcript
+              await supabase.functions.invoke('log_partial', {
+                body: {
+                  sessionId: voiceSession.id,
+                  text: transcriptText.trim(),
+                  speaker: 'user'
+                }
+              });
+
+              // Process with AI
+              const { data: aiResponse, error: aiError } = await supabase.functions.invoke('process_transcript', {
+                body: {
+                  transcript: transcriptText.trim(),
+                  sessionId: voiceSession.id,
+                  persona
+                }
+              });
+
+              if (aiError) throw aiError;
+
+              // Log AI response
+              if (aiResponse?.ai_reply) {
+                await supabase.functions.invoke('log_partial', {
+                  body: {
+                    sessionId: voiceSession.id,
+                    text: aiResponse.ai_reply,
+                    speaker: 'ai'
+                  }
+                });
+
+                // Speak AI response
+                setVoiceState("speaking");
+                await speakText(aiResponse.ai_reply);
+                setVoiceState("listening");
               }
+            } catch (error) {
+              console.error('Error processing speech:', error);
+              toast({
+                title: "Processing Error",
+                description: "Failed to process your speech. Please try again.",
+                variant: "destructive",
+              });
+              setVoiceState("listening");
+            }
+          }
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          if (event.error === 'no-speech') {
+            console.log('No speech detected');
+          } else {
+            toast({
+              title: "Microphone Error",
+              description: `Speech recognition error: ${event.error}`,
+              variant: "destructive",
             });
+          }
+        };
 
-            // Process with AI
-            const { data: aiResponse, error: aiError } = await supabase.functions.invoke('process_transcript', {
-              body: {
-                transcript: transcriptText,
-                sessionId: voiceSession.id,
-                persona
-              }
-            });
-
-            if (aiError) throw aiError;
-
-            // Log AI response
-            await supabase.functions.invoke('log_partial', {
-              body: {
-                sessionId: voiceSession.id,
-                text: aiResponse.ai_reply,
-                speaker: 'ai'
-              }
-            });
-
-            // Speak AI response
-            setVoiceState("speaking");
-            await speakText(aiResponse.ai_reply);
-            setVoiceState("listening");
+        recognitionRef.current.onend = () => {
+          console.log('Speech recognition ended');
+          if (voiceState !== 'idle') {
+            // Restart recognition if session is still active
+            try {
+              recognitionRef.current?.start();
+            } catch (e) {
+              console.log('Recognition already started');
+            }
           }
         };
 
