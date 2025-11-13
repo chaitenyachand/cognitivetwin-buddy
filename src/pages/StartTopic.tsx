@@ -43,7 +43,7 @@ const StartTopic = () => {
     setIsGenerating(true);
 
     try {
-      // Create topic in database
+      // Step 1: Create topic in database
       const { data: topicData, error: topicError } = await supabase
         .from("topics")
         .insert({
@@ -57,7 +57,29 @@ const StartTopic = () => {
 
       if (topicError) throw topicError;
 
-      // Log activity
+      toast({
+        title: "Generating materials...",
+        description: "Creating summary, mindmap, flashcards, quiz, and formula sheet",
+      });
+
+      // Step 2: Generate all materials using edge function
+      const { data: materialsData, error: materialsError } = await supabase.functions.invoke(
+        'generate_materials',
+        {
+          body: {
+            topicName: topicInput,
+            topicId: topicData.id,
+            userId: user?.id
+          }
+        }
+      );
+
+      if (materialsError) {
+        console.error('Materials generation error:', materialsError);
+        throw materialsError;
+      }
+
+      // Step 3: Log activity
       await supabase.from("activity_log").insert({
         user_id: user?.id,
         topic_id: topicData.id,
@@ -65,15 +87,17 @@ const StartTopic = () => {
       });
 
       toast({
-        title: "Topic created!",
-        description: "You can now generate learning materials for this topic.",
+        title: "Success!",
+        description: "All learning materials have been generated for your topic.",
       });
 
+      // Step 4: Navigate to dashboard Topics tab
       navigate("/dashboard");
     } catch (error: any) {
+      console.error('Error creating topic:', error);
       toast({
         title: "Error creating topic",
-        description: error.message,
+        description: error.message || "Failed to generate materials",
         variant: "destructive",
       });
     } finally {
@@ -138,23 +162,33 @@ const StartTopic = () => {
                   <p className="text-sm text-muted-foreground mb-4">
                     Start a voice session with the AI tutor to learn about your topic through conversation.
                   </p>
-                  <Button 
-                    size="lg" 
-                    className="w-full"
-                    onClick={() => {
-                      if (!topicInput.trim()) {
-                        toast({
-                          title: "Please enter a topic",
-                          description: "Enter a topic name before starting a voice session",
-                          variant: "destructive",
-                        });
-                        return;
-                      }
-                      navigate("/voice-tutor", { state: { topic: topicInput } });
-                    }}
-                  >
-                    Start Voice Session
-                  </Button>
+                  <div className="space-y-2">
+                    <Label htmlFor="voice-topic-input">Enter topic name first:</Label>
+                    <Input
+                      id="voice-topic-input"
+                      placeholder="e.g., Photosynthesis, World War II..."
+                      value={topicInput}
+                      onChange={(e) => setTopicInput(e.target.value)}
+                      className="mb-4"
+                    />
+                    <Button 
+                      size="lg" 
+                      className="w-full"
+                      onClick={() => {
+                        if (!topicInput.trim()) {
+                          toast({
+                            title: "Please enter a topic",
+                            description: "Enter a topic name before starting a voice session",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        navigate("/voice-tutor", { state: { topic: topicInput } });
+                      }}
+                    >
+                      Start Voice Session
+                    </Button>
+                  </div>
                 </div>
               )}
 
