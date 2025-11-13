@@ -180,14 +180,23 @@ serve(async (req) => {
     const appId = Deno.env.get('AGORA_APP_ID')?.trim();
     const appCertificate = Deno.env.get('AGORA_APP_CERT')?.trim();
 
+    console.log('AppID length:', appId?.length, 'first 8 chars:', appId?.substring(0, 8));
+    console.log('AppCert length:', appCertificate?.length, 'first 8 chars:', appCertificate?.substring(0, 8));
+
     if (!appId || !appCertificate) {
       throw new Error('Agora credentials not configured');
+    }
+    
+    if (appId.length !== 32 || appCertificate.length !== 32) {
+      throw new Error(`Invalid credentials format. AppID length: ${appId.length}, AppCert length: ${appCertificate.length}`);
     }
 
     const expirationTimeInSeconds = 24 * 60 * 60; // 24h
     const privilegeSeconds = expirationTimeInSeconds; // AccessToken2 expects durations, not absolute timestamps
 
     const numericUid = Number.isFinite(Number(uid)) ? Number(uid) : 0;
+    
+    console.log('Generating token for channel:', channelName, 'UID:', numericUid);
 
     // Build token
     const token = new AccessToken(appId, appCertificate, expirationTimeInSeconds);
