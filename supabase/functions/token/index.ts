@@ -118,14 +118,18 @@ serve(async (req) => {
       throw new Error('channelName is required');
     }
 
-    const appId = Deno.env.get('AGORA_APP_ID');
-    const appCertificate = Deno.env.get('AGORA_APP_CERT');
+    const appIdRaw = Deno.env.get('AGORA_APP_ID');
+    const appCertRaw = Deno.env.get('AGORA_APP_CERT');
+
+    const clean = (s: string) => s.trim().replace(/^['"]+|['"]+$/g, '');
+    const appId = appIdRaw ? clean(appIdRaw) : undefined;
+    const appCertificate = appCertRaw ? clean(appCertRaw) : undefined;
 
     if (!appId || !appCertificate) {
       throw new Error('Agora credentials not configured');
     }
 
-    console.log('Generating token for:', { appId, channelName, uid });
+    console.log('Generating token for:', { appId: appId.slice(0,8) + '...', channelName, uid });
 
     // Token valid for 24 hours
     const expirationTimeInSeconds = 86400;
