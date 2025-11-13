@@ -43,9 +43,10 @@ export const useVoiceSession = () => {
       setSessionId(voiceSession.id);
 
       // Get Agora token from backend
+      const channelName = "convai_JwoaC9";
       const { data: tokenData, error: tokenError } = await supabase.functions.invoke('token', {
         body: { 
-          channelName: `session-${voiceSession.id}`,
+          channelName,
           uid: 0
         }
       });
