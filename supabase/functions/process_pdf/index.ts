@@ -12,89 +12,110 @@ serve(async (req) => {
 
   try {
     const formData = await req.formData();
-    const file = formData.get('file') as File;
 
-    if (!file) {
-      throw new Error('No file provided');
-    }
+    // Prefer client-side converted images (data URLs) to support OCR for handwritten notes
+    const images = formData.getAll('images') as (string | File)[];
 
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      throw new Error('OPENAI_API_KEY not configured');
-    }
-
-    console.log('Processing PDF file:', file.name);
-
-    // Convert file to base64 for OpenAI (process in chunks to avoid stack overflow)
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    let binary = '';
-    const chunkSize = 0x8000; // 32KB chunks
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-    const base64 = btoa(binary);
-
-    // Use OpenAI's vision model to extract text from PDF (supports OCR for handwritten notes)
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert at extracting text from documents, including handwritten notes. Extract all text content accurately, preserving structure and formatting where possible."
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Please extract all text from this PDF document, including any handwritten notes. Maintain the structure and organization of the content."
-              },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${base64}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 4000
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.text();
-      console.error('OpenAI API error:', error);
-      throw new Error('Failed to process PDF');
-    }
-
-    const aiData = await response.json();
-    const extractedText = aiData.choices[0].message.content;
-
-    console.log('Successfully extracted text from PDF');
-
-    return new Response(
-      JSON.stringify({ extractedText }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (images && images.length > 0) {
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      if (!LOVABLE_API_KEY) {
+        throw new Error('LOVABLE_API_KEY not configured');
       }
-    );
+
+      console.log(`Processing ${images.length} image(s) for OCR`);
+
+      // Normalize to data URLs (string). If a File was provided, convert to data URL
+      const imageParts: { type: 'image_url'; image_url: string }[] = [];
+      for (const it of images) {
+        if (typeof it === 'string') {
+          // Expecting a data URL like data:image/jpeg;base64,.... If it's just base64, prefix it.
+          const val = it.trim();
+          const isDataUrl = val.startsWith('data:image/');
+          imageParts.push({ type: 'image_url', image_url: isDataUrl ? val : `data:image/jpeg;base64,${val}` });
+        } else {
+          const arr = new Uint8Array(await it.arrayBuffer());
+          // Default to jpeg
+          const base64 = btoa(String.fromCharCode(...arr));
+          imageParts.push({ type: 'image_url', image_url: `data:image/jpeg;base64,${base64}` });
+        }
+      }
+
+      // Call Lovable AI Gateway (OpenAI-compatible) to perform OCR + structured text extraction
+      const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.5-flash',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an expert OCR and document parser. Extract all readable text (including handwritten notes) from the provided pages. Preserve headings, lists, formulas, and overall structure as markdown where possible.'
+            },
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Extract all text from these pages. Keep structure, headings, bullet points, code, and formulas.' },
+                ...imageParts,
+              ],
+            },
+          ],
+          max_tokens: 4000,
+        }),
+      });
+
+      if (!aiResp.ok) {
+        if (aiResp.status === 429) {
+          return new Response(JSON.stringify({ error: 'Rate limits exceeded, please try again later.' }), {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        if (aiResp.status === 402) {
+          return new Response(
+            JSON.stringify({ error: 'Payment required, please add funds to your Lovable AI workspace.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const txt = await aiResp.text();
+        console.error('AI gateway OCR error:', aiResp.status, txt);
+        throw new Error('Failed to process images for OCR');
+      }
+
+      const aiData = await aiResp.json();
+      const extractedText = aiData.choices?.[0]?.message?.content ?? '';
+
+      return new Response(JSON.stringify({ extractedText }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Legacy PDF path: receiving a raw PDF file is no longer supported by image-only models.
+    // Frontend should convert PDF pages to images and send them in `images[]`.
+    const file = formData.get('file') as File | null;
+    if (file) {
+      console.error('Received a PDF file. Convert to images client-side and resend as images[].');
+      return new Response(
+        JSON.stringify({
+          error:
+            'PDF upload received but not supported directly. Please update the app to convert PDF pages to images and send as images[].',
+        }),
+        { status: 415, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    return new Response(JSON.stringify({ error: 'No images provided' }), {
+      status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-    console.error('Error processing PDF:', error);
+    console.error('Error processing PDF/images:', error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
