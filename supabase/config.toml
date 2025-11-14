@@ -14,3 +14,7 @@ verify_jwt = true
 
 [functions.process_pdf]
 verify_jwt = true
+
+[functions.chat]
+verify_jwt = false
+
