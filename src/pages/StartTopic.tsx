@@ -58,8 +58,50 @@ const StartTopic = () => {
     setIsProcessingPdf(true);
 
     try {
+      // Read PDF file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await getDocument({ data: arrayBuffer }).promise;
+      const numPages = pdf.numPages;
+
+      toast({
+        title: "Converting PDF to images",
+        description: `Processing ${numPages} page(s)...`,
+      });
+
+      // Convert each page to JPEG data URL
+      const imageDataUrls: string[] = [];
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR
+        
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Failed to get canvas context');
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+          canvas: canvas,
+        }).promise;
+
+        // Convert canvas to JPEG data URL (smaller than PNG)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        imageDataUrls.push(dataUrl);
+      }
+
+      toast({
+        title: "Extracting text with AI",
+        description: "Processing images for OCR...",
+      });
+
+      // Send images to edge function
       const formData = new FormData();
-      formData.append('file', file);
+      imageDataUrls.forEach((dataUrl) => {
+        formData.append('images', dataUrl);
+      });
 
       const { data, error } = await supabase.functions.invoke('process_pdf', {
         body: formData,
