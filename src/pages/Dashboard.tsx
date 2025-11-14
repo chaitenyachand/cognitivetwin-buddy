@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import Sidebar from "@/components/Sidebar";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import LearningActivityCalendar from "@/components/LearningActivityCalendar";
@@ -11,9 +10,9 @@ import TopicProgressCard from "@/components/TopicProgressCard";
 import ProgressChart from "@/components/ProgressChart";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flame } from "lucide-react";
 import MaterialViewer from "@/components/MaterialViewer";
 import WeakTopicsSection from "@/components/WeakTopicsSection";
+import { BookOpen, FileText, Map, Layers } from "lucide-react";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -53,7 +52,6 @@ const Dashboard = () => {
 
   const loadDashboardData = async (userId: string) => {
     try {
-      // Load topics with progress
       const { data: topicsData, error: topicsError } = await supabase
         .from("topics")
         .select("*")
@@ -63,7 +61,6 @@ const Dashboard = () => {
       if (topicsError) throw topicsError;
       setTopics(topicsData || []);
 
-      // Load activity log for calendar
       const { data: activityLogData, error: activityError } = await supabase
         .from("activity_log")
         .select("*")
@@ -86,7 +83,6 @@ const Dashboard = () => {
   const handleViewMaterial = async (topicId: string, topicName: string, materialType: "summary" | "mindmap" | "flashcards" | "formula_sheet" | "quiz") => {
     try {
       if (materialType === "summary") {
-        // Get summary from topics table
         const { data: topicData, error } = await supabase
           .from("topics")
           .select("summary")
@@ -102,7 +98,6 @@ const Dashboard = () => {
           topicId,
         });
       } else if (materialType === "mindmap") {
-        // Get mindmap from mindmaps table
         const { data: mindmapData, error } = await supabase
           .from("mindmaps")
           .select("nodes_json, edges_json")
@@ -110,21 +105,15 @@ const Dashboard = () => {
           .maybeSingle();
 
         if (error) throw error;
-        if (!mindmapData) {
-          throw new Error("Mindmap not found");
-        }
+        if (!mindmapData) throw new Error("Mindmap not found");
 
         setSelectedMaterial({
           type: "mindmap",
-          content: {
-            nodes: mindmapData.nodes_json,
-            edges: mindmapData.edges_json
-          },
+          content: { nodes: mindmapData.nodes_json, edges: mindmapData.edges_json },
           topicName,
           topicId,
         });
       } else if (materialType === "flashcards") {
-        // Get flashcards from flashcards table
         const { data: flashcardsData, error } = await supabase
           .from("flashcards")
           .select("flashcard_json")
@@ -132,9 +121,7 @@ const Dashboard = () => {
           .maybeSingle();
 
         if (error) throw error;
-        if (!flashcardsData) {
-          throw new Error("Flashcards not found");
-        }
+        if (!flashcardsData) throw new Error("Flashcards not found");
 
         setSelectedMaterial({
           type: "flashcards",
@@ -143,7 +130,6 @@ const Dashboard = () => {
           topicId,
         });
       } else {
-        // Get quiz and formula_sheet from materials table
         const { data: materialData, error } = await supabase
           .from("materials")
           .select("content")
@@ -152,9 +138,7 @@ const Dashboard = () => {
           .maybeSingle();
 
         if (error) throw error;
-        if (!materialData) {
-          throw new Error("Material not found");
-        }
+        if (!materialData) throw new Error("Material not found");
 
         setSelectedMaterial({
           type: materialType,
@@ -175,165 +159,133 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex">
       <Sidebar user={user} />
       
-      {/* Main Content */}
       <div className="flex-1 ml-64">
-        {/* Header */}
-        <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-8 py-6">
-            <h1 className="text-3xl font-bold text-foreground">
-              Welcome, {user?.user_metadata?.name || "Student"}!
+        <div className="border-b border-border bg-gradient-to-r from-card/50 via-card/80 to-card/50 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
+          <div className="px-8 py-8">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+              Welcome back, {user?.user_metadata?.name || "Student"}! 👋
             </h1>
+            <p className="text-muted-foreground mt-2">Continue your learning journey</p>
           </div>
         </div>
 
-        {/* Tabs Content */}
-        <div className="px-8 py-6">
-          <Tabs defaultValue="dashboard" className="space-y-6">
-            <TabsList className="border-b border-border w-full justify-start rounded-none h-auto p-0 bg-transparent">
-              <TabsTrigger 
-                value="dashboard"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger 
-                value="topics"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                Topics
-              </TabsTrigger>
-              <TabsTrigger 
-                value="next-steps"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-              >
-                Next Steps
-              </TabsTrigger>
+        <div className="px-8 py-8">
+          <Tabs defaultValue="dashboard" className="space-y-8">
+            <TabsList className="bg-muted/50 p-1 rounded-xl">
+              <TabsTrigger value="dashboard" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">📊 Dashboard</TabsTrigger>
+              <TabsTrigger value="topics" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">📚 Topics</TabsTrigger>
+              <TabsTrigger value="next-steps" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">🎯 Next Steps</TabsTrigger>
             </TabsList>
 
-            {/* Dashboard Tab */}
-            <TabsContent value="dashboard" className="space-y-6 mt-6">
+            <TabsContent value="dashboard" className="space-y-8 mt-8 animate-fade-in">
               <LearningActivityCalendar activityData={activityData} />
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Topics Covered */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-4">
-                  <h2 className="text-xl font-bold text-foreground">Topics Covered</h2>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-1 h-8 bg-gradient-to-b from-primary to-secondary rounded-full" />
+                    <h2 className="text-2xl font-bold text-foreground">Topics Covered</h2>
+                  </div>
                   {loading ? (
-                    <p className="text-muted-foreground">Loading topics...</p>
+                    <div className="space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-24 bg-muted/50 rounded-lg animate-pulse" />
+                      ))}
+                    </div>
                   ) : topics.length === 0 ? (
-                    <Card>
-                      <CardContent className="pt-6 text-center text-muted-foreground">
-                        <p>No topics yet. Start your learning journey by creating a new topic!</p>
+                    <Card className="border-dashed border-2">
+                      <CardContent className="pt-12 pb-12 text-center">
+                        <span className="text-3xl mb-4 block">📚</span>
+                        <p className="text-muted-foreground">No topics yet</p>
                       </CardContent>
                     </Card>
                   ) : (
-                    topics.slice(0, 5).map((topic) => (
-                      <TopicProgressCard key={topic.id} topic={topic.name} progress={topic.progress} />
-                    ))
+                    <div className="space-y-3">
+                      {topics.slice(0, 5).map((topic) => (
+                        <TopicProgressCard key={topic.id} topic={topic.name} progress={topic.progress} />
+                      ))}
+                    </div>
                   )}
                 </div>
-
-                {/* Progress Chart */}
                 {user && <ProgressChart userId={user.id} />}
               </div>
             </TabsContent>
 
-            {/* Topics Tab */}
-            <TabsContent value="topics" className="space-y-6 mt-6">
-              <h2 className="text-2xl font-bold text-foreground">Your Learning History (Per-Topic Details)</h2>
-              
+            <TabsContent value="topics" className="space-y-6 mt-8 animate-fade-in">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-8 bg-gradient-to-b from-primary to-secondary rounded-full" />
+                <h2 className="text-3xl font-bold text-foreground">Your Learning History</h2>
+              </div>
               {loading ? (
-                <p className="text-muted-foreground">Loading topics...</p>
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-48 bg-muted/50 rounded-xl animate-pulse" />
+                  ))}
+                </div>
               ) : topics.length === 0 ? (
-                <Card>
-                  <CardContent className="pt-6 text-center text-muted-foreground">
-                    <p>No topics yet. Start your learning journey by creating a new topic!</p>
+                <Card className="border-dashed border-2">
+                  <CardContent className="pt-16 pb-16 text-center">
+                    <span className="text-5xl mb-6 block">📚</span>
+                    <p className="text-muted-foreground text-xl">No topics yet</p>
                   </CardContent>
                 </Card>
               ) : (
-                topics.map((topic) => (
-                  <Card key={topic.id}>
-                    <CardContent className="pt-6">
-                      <div className="space-y-6">
-                        <div>
-                          <h3 className="text-xl font-bold text-foreground mb-2">{topic.name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Started: {new Date(topic.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-8">
-                          <div className="space-y-2">
-                            <p className="text-sm font-semibold text-foreground">Topic-Specific Progress</p>
-                            <p className="text-2xl font-bold text-primary">{topic.progress}%</p>
-                            <div className="w-full bg-muted rounded-full h-2">
-                              <div 
-                                className="bg-primary h-2 rounded-full transition-all" 
-                                style={{ width: `${topic.progress}%` }}
-                              />
+                <div className="space-y-6">
+                  {topics.map((topic) => (
+                    <Card key={topic.id} className="border-none shadow-lg hover:shadow-xl transition-all">
+                      <CardContent className="pt-8">
+                        <div className="space-y-8">
+                          <div className="flex items-start gap-4">
+                            <div className="w-14 h-14 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-2xl flex items-center justify-center flex-shrink-0">
+                              <BookOpen className="w-7 h-7 text-primary" />
                             </div>
-                            <p className="text-xs text-muted-foreground">0% 100%</p>
-                          </div>
-
-                          <div className="space-y-2">
-                            <p className="text-sm font-semibold text-foreground">Best Score</p>
-                            <p className="text-2xl font-bold text-primary text-right">{topic.best_score}%</p>
-                            <div className="w-full bg-muted rounded-full h-2">
-                              <div 
-                                className="bg-primary h-2 rounded-full transition-all" 
-                                style={{ width: `${topic.best_score}%` }}
-                              />
+                            <div className="flex-1">
+                              <h3 className="font-bold text-2xl text-foreground mb-2">{topic.name}</h3>
+                              <p className="text-sm text-muted-foreground">Started: {new Date(topic.created_at).toLocaleDateString()}</p>
                             </div>
-                            <p className="text-xs text-muted-foreground text-right">0% 100%</p>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-gradient-to-br from-primary/5 to-transparent p-5 rounded-xl space-y-3">
+                              <p className="text-sm font-semibold">Progress</p>
+                              <p className="text-3xl font-bold text-primary">{topic.progress}%</p>
+                              <div className="w-full bg-muted rounded-full h-3">
+                                <div className="bg-gradient-to-r from-primary to-secondary h-3 rounded-full transition-all" style={{ width: `${topic.progress}%` }} />
+                              </div>
+                            </div>
+                            <div className="bg-gradient-to-br from-secondary/5 to-transparent p-5 rounded-xl space-y-3">
+                              <p className="text-sm font-semibold">Best Score</p>
+                              <p className="text-3xl font-bold text-secondary text-right">{topic.best_score}%</p>
+                              <div className="w-full bg-muted rounded-full h-3">
+                                <div className="bg-gradient-to-r from-secondary to-accent h-3 rounded-full transition-all" style={{ width: `${topic.best_score}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <Button variant="outline" className="hover:bg-primary/10 hover:border-primary" onClick={() => handleViewMaterial(topic.id, topic.name, "summary")}>
+                              <FileText className="w-4 h-4 mr-2" />Summary
+                            </Button>
+                            <Button variant="outline" className="hover:bg-secondary/10 hover:border-secondary" onClick={() => handleViewMaterial(topic.id, topic.name, "mindmap")}>
+                              <Map className="w-4 h-4 mr-2" />Mind Map
+                            </Button>
+                            <Button variant="outline" className="hover:bg-accent/10 hover:border-accent" onClick={() => handleViewMaterial(topic.id, topic.name, "flashcards")}>
+                              <Layers className="w-4 h-4 mr-2" />Flashcards
+                            </Button>
+                            <Button variant="outline" className="hover:bg-primary/10 hover:border-primary" onClick={() => handleViewMaterial(topic.id, topic.name, "formula_sheet")}>
+                              Formula
+                            </Button>
                           </div>
                         </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <Button 
-                            variant="secondary" 
-                            className="w-full"
-                            onClick={() => handleViewMaterial(topic.id, topic.name, "summary")}
-                          >
-                            View Summary
-                          </Button>
-                          <Button 
-                            variant="secondary" 
-                            className="w-full"
-                            onClick={() => handleViewMaterial(topic.id, topic.name, "mindmap")}
-                          >
-                            View Mind Map
-                          </Button>
-                          <Button 
-                            variant="secondary" 
-                            className="w-full"
-                            onClick={() => handleViewMaterial(topic.id, topic.name, "flashcards")}
-                          >
-                            View Flashcards
-                          </Button>
-                          <Button 
-                            variant="secondary" 
-                            className="w-full"
-                            onClick={() => handleViewMaterial(topic.id, topic.name, "formula_sheet")}
-                          >
-                            Formula Sheet
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
             </TabsContent>
 
-            {/* Next Steps Tab */}
-            <TabsContent value="next-steps" className="space-y-6 mt-6">
-              <h2 className="text-2xl font-bold text-foreground">Areas to Focus On</h2>
-              <p className="text-muted-foreground">Identified weak areas and recommended next steps based on your performance</p>
-              
-              <WeakTopicsSection userId={user?.id || ''} onViewMaterial={handleViewMaterial} />
+            <TabsContent value="next-steps" className="mt-8 animate-fade-in">
+              {user && <WeakTopicsSection userId={user.id} onViewMaterial={handleViewMaterial} />}
             </TabsContent>
           </Tabs>
         </div>
