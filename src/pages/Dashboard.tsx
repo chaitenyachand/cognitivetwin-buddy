@@ -200,7 +200,7 @@ const Dashboard = () => {
                 </div>
 
                 {/* Progress Chart */}
-                <ProgressChart />
+                {user && <ProgressChart userId={user.id} />}
               </div>
             </TabsContent>
 
