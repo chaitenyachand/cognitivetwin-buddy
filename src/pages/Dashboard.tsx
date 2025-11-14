@@ -12,6 +12,7 @@ import ProgressChart from "@/components/ProgressChart";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Flame } from "lucide-react";
+import MaterialViewer from "@/components/MaterialViewer";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -20,6 +21,12 @@ const Dashboard = () => {
   const [topics, setTopics] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activityData, setActivityData] = useState<any[]>([]);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState<{
+    type: "summary" | "mindmap" | "flashcards" | "formula_sheet" | "quiz";
+    content: any;
+    topicName: string;
+  } | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -71,6 +78,51 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewMaterial = async (topicId: string, topicName: string, materialType: "summary" | "mindmap" | "flashcards" | "formula_sheet" | "quiz") => {
+    try {
+      if (materialType === "summary") {
+        // Get summary from topics table
+        const { data: topicData, error } = await supabase
+          .from("topics")
+          .select("summary")
+          .eq("id", topicId)
+          .single();
+
+        if (error) throw error;
+        
+        setSelectedMaterial({
+          type: "summary",
+          content: topicData.summary,
+          topicName,
+        });
+      } else {
+        // Get other materials from materials table
+        const { data: materialData, error } = await supabase
+          .from("materials")
+          .select("content")
+          .eq("topic_id", topicId)
+          .eq("material_type", materialType)
+          .single();
+
+        if (error) throw error;
+
+        setSelectedMaterial({
+          type: materialType,
+          content: materialData.content,
+          topicName,
+        });
+      }
+
+      setViewerOpen(true);
+    } catch (error: any) {
+      toast({
+        title: "Error loading material",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -196,10 +248,34 @@ const Dashboard = () => {
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <Button variant="secondary" className="w-full">View Summary</Button>
-                          <Button variant="secondary" className="w-full">View Mind Map</Button>
-                          <Button variant="secondary" className="w-full">View Flashcards</Button>
-                          <Button variant="secondary" className="w-full">Formula Sheet</Button>
+                          <Button 
+                            variant="secondary" 
+                            className="w-full"
+                            onClick={() => handleViewMaterial(topic.id, topic.name, "summary")}
+                          >
+                            View Summary
+                          </Button>
+                          <Button 
+                            variant="secondary" 
+                            className="w-full"
+                            onClick={() => handleViewMaterial(topic.id, topic.name, "mindmap")}
+                          >
+                            View Mind Map
+                          </Button>
+                          <Button 
+                            variant="secondary" 
+                            className="w-full"
+                            onClick={() => handleViewMaterial(topic.id, topic.name, "flashcards")}
+                          >
+                            View Flashcards
+                          </Button>
+                          <Button 
+                            variant="secondary" 
+                            className="w-full"
+                            onClick={() => handleViewMaterial(topic.id, topic.name, "formula_sheet")}
+                          >
+                            Formula Sheet
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -249,6 +325,16 @@ const Dashboard = () => {
           </Tabs>
         </div>
       </div>
+
+      {selectedMaterial && (
+        <MaterialViewer
+          open={viewerOpen}
+          onOpenChange={setViewerOpen}
+          type={selectedMaterial.type}
+          content={selectedMaterial.content}
+          topicName={selectedMaterial.topicName}
+        />
+      )}
     </div>
   );
 };
