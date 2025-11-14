@@ -36,16 +36,13 @@ const ProgressChart = ({ userId }: ProgressChartProps) => {
         return;
       }
 
-      // Process data for chart
       const chartData = quizResults.map(result => ({
         date: format(new Date(result.created_at), 'MMM dd'),
         score: Number(result.score)
       }));
 
-      // Calculate average score
       const avg = quizResults.reduce((sum, r) => sum + Number(r.score), 0) / quizResults.length;
 
-      // Calculate improvement (first half vs second half)
       let improvementValue = 0;
       if (quizResults.length >= 2) {
         const midpoint = Math.floor(quizResults.length / 2);
@@ -70,13 +67,16 @@ const ProgressChart = ({ userId }: ProgressChartProps) => {
 
   if (loading) {
     return (
-      <Card>
+      <Card className="border-none shadow-lg">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Progress</CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-6 bg-gradient-to-b from-primary to-secondary rounded-full" />
+            <CardTitle className="text-xl font-bold">Your Progress</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-            Loading progress data...
+          <div className="h-[300px] flex items-center justify-center">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         </CardContent>
       </Card>
@@ -85,13 +85,19 @@ const ProgressChart = ({ userId }: ProgressChartProps) => {
 
   if (data.length === 0) {
     return (
-      <Card>
+      <Card className="border-dashed border-2">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold">Progress</CardTitle>
+          <div className="flex items-center gap-3">
+            <div className="w-1 h-6 bg-gradient-to-b from-primary to-secondary rounded-full" />
+            <CardTitle className="text-xl font-bold">Your Progress</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-            No quiz data yet. Complete some quizzes to see your progress!
+          <div className="h-[300px] flex items-center justify-center text-center">
+            <div>
+              <span className="text-4xl mb-4 block">📈</span>
+              <p className="text-muted-foreground">Complete quizzes to track progress!</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -99,57 +105,36 @@ const ProgressChart = ({ userId }: ProgressChartProps) => {
   }
 
   return (
-    <Card>
+    <Card className="border-none shadow-lg">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Progress</CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="w-1 h-6 bg-gradient-to-b from-primary to-secondary rounded-full" />
+          <CardTitle className="text-xl font-bold">Your Progress</CardTitle>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gradient-to-br from-primary/10 to-transparent p-4 rounded-xl">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Average</p>
+            <p className="text-2xl font-bold text-primary">{averageScore.toFixed(1)}%</p>
+          </div>
+          <div className="bg-gradient-to-br from-secondary/10 to-transparent p-4 rounded-xl">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Improvement</p>
+            <p className={`text-2xl font-bold ${improvement >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {improvement >= 0 ? '+' : ''}{improvement.toFixed(1)}%
+            </p>
+          </div>
+        </div>
+
         <ResponsiveContainer width="100%" height={250}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis 
-              dataKey="date" 
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
-              tickLine={false}
-            />
-            <YAxis 
-              tick={{ fill: 'hsl(var(--muted-foreground))' }}
-              tickLine={false}
-              label={{ value: 'Score (%)', angle: -90, position: 'insideLeft', fill: 'hsl(var(--muted-foreground))' }}
-            />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: 'hsl(var(--card))', 
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '8px'
-              }}
-            />
-            <Line 
-              type="monotone" 
-              dataKey="score" 
-              stroke="hsl(var(--primary))" 
-              strokeWidth={3}
-              dot={{ fill: 'hsl(var(--primary))', r: 5 }}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+            <XAxis dataKey="date" tick={{ fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} domain={[0, 100]} />
+            <Tooltip />
+            <Line type="monotone" dataKey="score" stroke="hsl(var(--primary))" strokeWidth={3} dot={{ fill: 'hsl(var(--primary))', r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
-
-        <div className="grid grid-cols-2 gap-4 mt-6">
-          <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardContent className="pt-6 text-center">
-              <p className="text-sm text-muted-foreground mb-1">Average Score</p>
-              <p className="text-3xl font-bold text-primary">{averageScore.toFixed(1)}%</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-to-br from-secondary/10 to-secondary/5">
-            <CardContent className="pt-6 text-center">
-              <p className="text-sm text-muted-foreground mb-1">Improvement</p>
-              <p className={`text-3xl font-bold flex items-center justify-center gap-1 ${improvement >= 0 ? 'text-secondary' : 'text-destructive'}`}>
-                <span className="text-2xl">{improvement >= 0 ? '↑' : '↓'}</span> {Math.abs(improvement).toFixed(1)}%
-              </p>
-            </CardContent>
-          </Card>
-        </div>
       </CardContent>
     </Card>
   );

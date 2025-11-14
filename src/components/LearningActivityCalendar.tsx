@@ -52,41 +52,44 @@ const LearningActivityCalendar = ({ activityData }: LearningActivityCalendarProp
   const maxActivity = Math.max(...Array.from(activityMap.values()), 1);
 
   const getActivityLevel = (count: number): string => {
-    if (count === 0) return "bg-muted";
+    if (count === 0) return "bg-muted hover:bg-muted";
     const ratio = count / maxActivity;
-    if (ratio <= 0.33) return "bg-primary/30";
-    if (ratio <= 0.66) return "bg-primary/60";
-    return "bg-primary";
+    if (ratio <= 0.33) return "bg-primary/30 hover:bg-primary/40";
+    if (ratio <= 0.66) return "bg-primary/60 hover:bg-primary/70";
+    return "bg-primary hover:bg-primary/90";
   };
 
   return (
-    <Card>
+    <Card className="border-none shadow-lg bg-gradient-to-br from-card via-card to-card/50">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold">Your Learning Activity</CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="w-1 h-8 bg-gradient-to-b from-primary to-secondary rounded-full" />
+          <CardTitle className="text-2xl font-bold text-foreground">Your Learning Activity</CardTitle>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Month labels */}
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+          <div className="flex justify-between text-xs text-muted-foreground font-medium mb-2">
             {months.map((month) => (
               <span key={month} className="w-8">{month}</span>
             ))}
           </div>
 
           {/* Calendar grid */}
-          <div className="flex gap-1">
-            <div className="flex flex-col justify-between text-xs text-muted-foreground pr-2">
+          <div className="flex gap-2">
+            <div className="flex flex-col justify-between text-xs text-muted-foreground font-medium pr-3">
               {days.map((day) => (
                 <span key={day} className="w-8">{day}</span>
               ))}
             </div>
-            <div className="flex-1 space-y-1">
+            <div className="flex-1 space-y-1.5">
               {calendarData.map((row, rowIndex) => (
-                <div key={rowIndex} className="flex gap-1">
+                <div key={rowIndex} className="flex gap-1.5">
                   {row.map((activityCount, colIndex) => (
                     <div
                       key={colIndex}
-                      className={`w-full aspect-square rounded-sm ${getActivityLevel(activityCount)}`}
+                      className={`w-full aspect-square rounded-md transition-all duration-200 cursor-pointer ${getActivityLevel(activityCount)}`}
                       title={`${activityCount} ${activityCount === 1 ? 'activity' : 'activities'}`}
                     />
                   ))}
@@ -96,18 +99,18 @@ const LearningActivityCalendar = ({ activityData }: LearningActivityCalendarProp
           </div>
 
           {/* Legend */}
-          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2">
-            <span>Less</span>
-            <div className="flex gap-1">
-              <div className="w-3 h-3 rounded-sm bg-muted" />
-              <div className="w-3 h-3 rounded-sm bg-primary/30" />
-              <div className="w-3 h-3 rounded-sm bg-primary/60" />
-              <div className="w-3 h-3 rounded-sm bg-primary" />
+          <div className="flex items-center justify-between pt-4 border-t border-border/50">
+            <span className="text-xs text-muted-foreground font-medium">Less</span>
+            <div className="flex gap-1.5">
+              <div className="w-4 h-4 rounded-md bg-muted" />
+              <div className="w-4 h-4 rounded-md bg-primary/30" />
+              <div className="w-4 h-4 rounded-md bg-primary/60" />
+              <div className="w-4 h-4 rounded-md bg-primary" />
             </div>
-            <span>More</span>
+            <span className="text-xs text-muted-foreground font-medium">More</span>
           </div>
 
-          <div className="text-right text-xs text-muted-foreground">Past 12 months</div>
+          <div className="text-right text-xs text-muted-foreground font-medium">Past 12 months</div>
         </div>
       </CardContent>
     </Card>
