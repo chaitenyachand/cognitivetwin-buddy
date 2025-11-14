@@ -182,14 +182,10 @@ const Dashboard = () => {
       <div className="flex-1 ml-64">
         {/* Header */}
         <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-8 py-6 flex justify-between items-center">
+          <div className="px-8 py-6">
             <h1 className="text-3xl font-bold text-foreground">
               Welcome, {user?.user_metadata?.name || "Student"}!
             </h1>
-            <Badge variant="secondary" className="px-4 py-2 text-sm font-semibold">
-              <Flame className="w-4 h-4 mr-2 text-orange-500" />
-              0 Day Streak
-            </Badge>
           </div>
         </div>
 
@@ -219,7 +215,7 @@ const Dashboard = () => {
 
             {/* Dashboard Tab */}
             <TabsContent value="dashboard" className="space-y-6 mt-6">
-              <LearningActivityCalendar />
+              <LearningActivityCalendar activityData={activityData} />
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Topics Covered */}
