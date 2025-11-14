@@ -2,7 +2,7 @@
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/9068a9f6-ab41-4d5c-bff4-db937b71ac25
+**URL**: https://cognitivetwin-buddy.lovable.app
 
 ## How can I edit this code?
 
