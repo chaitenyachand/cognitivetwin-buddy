@@ -101,8 +101,49 @@ const Dashboard = () => {
           topicName,
           topicId,
         });
+      } else if (materialType === "mindmap") {
+        // Get mindmap from mindmaps table
+        const { data: mindmapData, error } = await supabase
+          .from("mindmaps")
+          .select("nodes_json, edges_json")
+          .eq("topic_id", topicId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!mindmapData) {
+          throw new Error("Mindmap not found");
+        }
+
+        setSelectedMaterial({
+          type: "mindmap",
+          content: {
+            nodes: mindmapData.nodes_json,
+            edges: mindmapData.edges_json
+          },
+          topicName,
+          topicId,
+        });
+      } else if (materialType === "flashcards") {
+        // Get flashcards from flashcards table
+        const { data: flashcardsData, error } = await supabase
+          .from("flashcards")
+          .select("flashcard_json")
+          .eq("topic_id", topicId)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (!flashcardsData) {
+          throw new Error("Flashcards not found");
+        }
+
+        setSelectedMaterial({
+          type: "flashcards",
+          content: flashcardsData.flashcard_json,
+          topicName,
+          topicId,
+        });
       } else {
-        // Get other materials from materials table
+        // Get quiz and formula_sheet from materials table
         const { data: materialData, error } = await supabase
           .from("materials")
           .select("content")

@@ -15,8 +15,8 @@ import FlipCard from "@/components/FlipCard";
 import InteractiveQuiz from "@/components/InteractiveQuiz";
 import ReactMarkdown from "react-markdown";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
-// Use CDN worker to avoid bundling issues
-GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.js";
+// Use unpkg CDN worker for better reliability
+GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@5.4.394/build/pdf.worker.min.mjs";
 
 const StartTopic = () => {
   const navigate = useNavigate();
