@@ -59,7 +59,9 @@ const InteractiveQuiz = ({ questions, topicId, userId }: InteractiveQuizProps) =
   };
 
   const saveQuizResult = async (finalAnswers: number[]) => {
-    const finalScore = (score + (selectedAnswer === questions[currentQuestion].correctIndex ? 1 : 0)) / questions.length * 100;
+    // Calculate correct answers from finalAnswers array
+    const correctCount = finalAnswers.filter((answer, idx) => answer === questions[idx].correctIndex).length;
+    const finalScore = (correctCount / questions.length) * 100;
     
     // Identify weak areas
     const weakAreas: string[] = [];
