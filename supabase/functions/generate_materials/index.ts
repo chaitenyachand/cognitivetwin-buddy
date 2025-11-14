@@ -26,58 +26,90 @@ serve(async (req) => {
     console.log('Generating materials for topic:', topicName);
 
     // Generate all materials using OpenAI API
-    const systemPrompt = `You are an educational content generator. Create comprehensive learning materials for the topic provided.
+    const systemPrompt = `You are an educational content generator. Create comprehensive learning materials suitable for students learning from scratch.
 
-IMPORTANT RULES:
+CRITICAL RULES:
 - Do NOT use emojis anywhere in the generated content
-- Write in clear, professional language
-- Be thorough and educational
+- Write in clear, professional, educational language
+- Be thorough and provide detailed explanations
+- Use proper formatting and structure
 
 Generate materials in this exact JSON format:
 {
-  "summary": "A comprehensive 4-6 paragraph summary covering key concepts, important details, practical applications, and learning outcomes. Make it detailed and informative.",
+  "summary": "A detailed, well-structured summary with 4-6 comprehensive paragraphs. Cover key concepts, important details, practical applications, and learning outcomes. Make it informative and suitable for students learning from scratch. Use clear paragraph breaks.",
   "mindmap": {
     "nodes": [
       {"id": "1", "label": "Central Topic", "level": 0, "color": "primary"},
       {"id": "2", "label": "Key Concept 1", "level": 1, "color": "blue"},
       {"id": "3", "label": "Detail 1a", "level": 2, "color": "blue"},
       {"id": "4", "label": "Detail 1b", "level": 2, "color": "blue"},
-      {"id": "5", "label": "Key Concept 2", "level": 1, "color": "purple"}
+      {"id": "5", "label": "Key Concept 2", "level": 1, "color": "purple"},
+      {"id": "6", "label": "Detail 2a", "level": 2, "color": "purple"}
     ],
     "edges": [
       {"source": "1", "target": "2", "color": "blue"},
       {"source": "2", "target": "3", "color": "blue"},
       {"source": "2", "target": "4", "color": "blue"},
-      {"source": "1", "target": "5", "color": "purple"}
+      {"source": "1", "target": "5", "color": "purple"},
+      {"source": "5", "target": "6", "color": "purple"}
     ]
   },
   "flashcards": [
-    {"front": "Concise question or term", "back": "Clear, detailed answer or definition"},
-    {"front": "Key concept", "back": "Explanation with examples"}
+    {"front": "Key term or concept question", "back": "Clear, detailed definition or answer with explanation"},
+    {"front": "Important concept", "back": "Comprehensive explanation with examples and context"}
   ],
   "quiz": {
     "questions": [
       {
-        "question": "What is...",
-        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "question": "What is the main purpose of...?",
+        "topic": "Core Concepts",
+        "options": ["A. First option", "B. Second option", "C. Third option", "D. Fourth option"],
         "correctIndex": 0,
-        "explanation": "Detailed explanation of why this is correct"
+        "explanation": "Detailed explanation of why this answer is correct and why others are incorrect"
       }
     ]
   },
   "formula_sheet": {
     "formulas": [
       {
-        "name": "Formula Name",
-        "formula": "mathematical formula or key concept",
-        "description": "when and how to use it",
-        "example": "example application"
+        "name": "Formula or Principle Name",
+        "formula": "Mathematical formula or key concept statement",
+        "description": "Clear explanation of when and how to use it, with context",
+        "example": "Concrete example application with numbers or real-world scenario"
       }
     ]
   }
 }
 
-Create 8-12 mindmap nodes with multiple branches, 8-12 flashcards, 6-10 quiz questions, and 5-8 formulas/key concepts. Use colors: primary, blue, purple, pink, red, green for mindmap branches.`;
+MINDMAP REQUIREMENTS:
+- Create 10-15 hierarchical nodes with clear relationships
+- Level 0: 1 central topic node (color: "primary")
+- Level 1: 3-5 main concept nodes (colors: "blue", "purple", "pink", "green")
+- Level 2: 6-10 detail nodes matching parent colors
+- Ensure each branch has at least 2 child nodes
+- Keep labels concise (2-5 words max)
+- Use diverse colors for different main branches
+
+FLASHCARD REQUIREMENTS:
+- Generate 10-15 flashcards
+- Front: Clear, concise question or key term (keep brief)
+- Back: Detailed definition with explanation and context
+- Cover the most important concepts from the topic
+- Mix conceptual and factual cards
+
+QUIZ REQUIREMENTS:
+- Generate 8-12 questions with good variety
+- Include "topic" field: 2-4 word category for each question
+- Options must start with "A. ", "B. ", "C. ", "D. "
+- Make distractors plausible but clearly incorrect
+- Provide thorough explanations that teach the concept
+- Test understanding, not just memorization
+
+FORMULA SHEET REQUIREMENTS:
+- Generate 6-10 key formulas, equations, or important principles
+- If no mathematical formulas exist, include key concepts and definitions
+- Each entry must have all four fields: name, formula, description, example
+- Make examples concrete and practical`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
