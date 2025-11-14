@@ -15,36 +15,38 @@ serve(async (req) => {
     const { topic } = await req.json();
     console.log('Generating visual for topic:', topic);
 
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Generate an educational diagram/visual using DALL-E
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    // Generate an educational diagram/visual using Lovable AI
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'dall-e-3',
-        prompt: `Create a clear, educational diagram about ${topic}. The diagram should be simple, labeled, and suitable for teaching. Use a clean, scientific illustration style with clear labels and annotations. Make it informative and visually organized.`,
-        n: 1,
-        size: '1024x1024',
-        quality: 'standard',
-        style: 'natural'
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [
+          {
+            role: 'user',
+            content: `Create a clear, educational diagram about ${topic}. The diagram should be simple, labeled, and suitable for teaching. Use a clean, scientific illustration style with clear labels and annotations. Make it informative and visually organized.`
+          }
+        ],
+        modalities: ['image', 'text']
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
+      console.error('Lovable AI error:', errorText);
       throw new Error(`Failed to generate visual: ${errorText}`);
     }
 
     const data = await response.json();
-    const imageUrl = data.data[0].url;
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
     console.log('Visual generated successfully');
 
