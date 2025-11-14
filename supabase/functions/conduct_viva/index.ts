@@ -35,11 +35,12 @@ serve(async (req) => {
 
     if (action === 'start') {
       // Start viva test
+      const hasMaterials = materials && typeof materials === 'object';
       const systemPrompt = `You are conducting a viva voce (oral examination) for a student on the topic: "${topicName}".
 
 MATERIALS PROVIDED:
-${materials.summary ? `Summary:\n${materials.summary}\n\n` : ''}
-${materials.flashcards ? `Key Concepts:\n${materials.flashcards.map((fc: any) => `- ${fc.front}`).join('\n')}\n\n` : ''}
+${hasMaterials && materials.summary ? `Summary:\n${materials.summary}\n\n` : 'No summary available. Base questions on the topic name.\n\n'}
+${hasMaterials && materials.flashcards && Array.isArray(materials.flashcards) ? `Key Concepts:\n${materials.flashcards.map((fc: any) => `- ${fc.front}`).join('\n')}\n\n` : ''}
 
 VIVA STYLE:
 - Ask ONE thoughtful question at a time
@@ -82,10 +83,11 @@ Begin by asking your first question. Keep it conversational and engaging.`;
 
     } else if (action === 'answer') {
       // Process student answer and ask next question
+      const hasMaterials = materials && typeof materials === 'object';
       const systemPrompt = `You are conducting a viva voce examination on "${topicName}".
 
 MATERIALS:
-${materials.summary ? `Summary:\n${materials.summary}\n\n` : ''}
+${hasMaterials && materials.summary ? `Summary:\n${materials.summary}\n\n` : 'No detailed materials available. Base assessment on topic knowledge.\n\n'}
 
 CONVERSATION SO FAR:
 ${conversationHistory.map((msg: any) => `${msg.role === 'assistant' ? 'Examiner' : 'Student'}: ${msg.content}`).join('\n')}
@@ -128,13 +130,14 @@ Be encouraging but assess their understanding. Track weak areas mentally.`;
 
     } else if (action === 'end') {
       // Generate final assessment
+      const hasMaterials = materials && typeof materials === 'object';
       const assessmentPrompt = `You conducted a viva examination on "${topicName}".
 
 FULL CONVERSATION:
 ${conversationHistory.map((msg: any) => `${msg.role === 'assistant' ? 'Examiner' : 'Student'}: ${msg.content}`).join('\n\n')}
 
 MATERIALS COVERED:
-${materials.summary ? `Summary:\n${materials.summary}\n\n` : ''}
+${hasMaterials && materials.summary ? `Summary:\n${materials.summary}\n\n` : 'Assessment based on general topic knowledge.\n\n'}
 
 Provide a comprehensive assessment in JSON format:
 {
