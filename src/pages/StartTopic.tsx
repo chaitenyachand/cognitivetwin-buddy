@@ -19,6 +19,8 @@ const StartTopic = () => {
   const [inputMethod, setInputMethod] = useState("type");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showVoiceSession, setShowVoiceSession] = useState(false);
+  const [generatedMaterials, setGeneratedMaterials] = useState<any>(null);
+  const [currentTopicId, setCurrentTopicId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -91,8 +93,9 @@ const StartTopic = () => {
         description: "All learning materials have been generated for your topic.",
       });
 
-      // Step 4: Navigate to dashboard Topics tab
-      navigate("/dashboard");
+      // Step 4: Set generated materials to display them
+      setGeneratedMaterials(materialsData);
+      setCurrentTopicId(topicData.id);
     } catch (error: any) {
       console.error('Error creating topic:', error);
       toast({
@@ -104,6 +107,144 @@ const StartTopic = () => {
       setIsGenerating(false);
     }
   };
+
+  // If materials are generated, show them
+  if (generatedMaterials) {
+    return (
+      <div className="min-h-screen bg-background flex">
+        <Sidebar user={user} />
+        
+        <div className="flex-1 ml-64">
+          <div className="px-8 py-12 max-w-6xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-4xl font-bold text-foreground">
+                🎉 Learning Materials Generated!
+              </h1>
+              <Button onClick={() => navigate("/dashboard")}>
+                Go to Dashboard
+              </Button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    📝 Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    {generatedMaterials.summary || "No summary available"}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Mind Map */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    🗺️ Mind Map
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    {generatedMaterials.mindmap || "No mindmap available"}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Flashcards */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    🎴 Flashcards
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {generatedMaterials.flashcards?.map((card: any, index: number) => (
+                      <Card key={index}>
+                        <CardContent className="pt-6">
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm font-semibold text-muted-foreground mb-1">Question</p>
+                              <p className="text-foreground font-medium">{card.front}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-muted-foreground mb-1">Answer</p>
+                              <p className="text-muted-foreground">{card.back}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Formula Sheet */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    📐 Formula Sheet
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    {generatedMaterials.formulaSheet || "No formula sheet available"}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quiz */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    ❓ Quiz
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    {generatedMaterials.quiz?.map((question: any, index: number) => (
+                      <Card key={index}>
+                        <CardContent className="pt-6">
+                          <div className="space-y-4">
+                            <div>
+                              <p className="text-sm font-semibold text-muted-foreground mb-2">Question {index + 1}</p>
+                              <p className="text-foreground font-medium">{question.question}</p>
+                            </div>
+                            <div className="space-y-2">
+                              {question.options.map((option: string, optIndex: number) => (
+                                <div 
+                                  key={optIndex}
+                                  className={`p-3 rounded-md border ${
+                                    optIndex === question.correctAnswer 
+                                      ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
+                                      : 'border-border'
+                                  }`}
+                                >
+                                  <p className="text-sm">{option}</p>
+                                </div>
+                              ))}
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-muted-foreground mb-1">Explanation</p>
+                              <p className="text-sm text-muted-foreground">{question.explanation}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
