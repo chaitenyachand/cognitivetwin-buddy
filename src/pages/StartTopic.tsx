@@ -249,42 +249,24 @@ const StartTopic = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-2xl flex items-center gap-2">
-                    ❓ Quiz
+                    Quiz
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-6">
-                    {generatedMaterials.quiz?.questions?.map((question: any, index: number) => (
-                      <Card key={index}>
-                        <CardContent className="pt-6">
-                          <div className="space-y-4">
-                            <div>
-                              <p className="text-sm font-semibold text-muted-foreground mb-2">Question {index + 1}</p>
-                              <p className="text-foreground font-medium">{question.question}</p>
-                            </div>
-                            <div className="space-y-2">
-                              {question.options.map((option: string, optIndex: number) => (
-                                <div 
-                                  key={optIndex}
-                                  className={`p-3 rounded-md border ${
-                                    optIndex === question.correct 
-                                      ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
-                                      : 'border-border'
-                                  }`}
-                                >
-                                  <p className="text-sm">{option}</p>
-                                </div>
-                              ))}
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-muted-foreground mb-1">Explanation</p>
-                              <p className="text-sm text-muted-foreground">{question.explanation}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                  {generatedMaterials.quiz?.questions && user?.id && currentTopicId ? (
+                    <InteractiveQuiz 
+                      questions={generatedMaterials.quiz.questions.map((q: any) => ({
+                        question: q.question,
+                        options: q.options,
+                        correctIndex: q.correctIndex,
+                        explanation: q.explanation
+                      }))}
+                      topicId={currentTopicId}
+                      userId={user.id}
+                    />
+                  ) : (
+                    <p className="text-muted-foreground">No quiz available</p>
+                  )}
                 </CardContent>
               </Card>
             </div>
