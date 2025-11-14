@@ -107,9 +107,12 @@ const Dashboard = () => {
           .select("content")
           .eq("topic_id", topicId)
           .eq("material_type", materialType)
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
+        if (!materialData) {
+          throw new Error("Material not found");
+        }
 
         setSelectedMaterial({
           type: materialType,

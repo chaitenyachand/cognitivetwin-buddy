@@ -25,6 +25,8 @@ const StartTopic = () => {
   const [showVoiceSession, setShowVoiceSession] = useState(false);
   const [generatedMaterials, setGeneratedMaterials] = useState<any>(null);
   const [currentTopicId, setCurrentTopicId] = useState<string | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [isProcessingPdf, setIsProcessingPdf] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -36,11 +38,54 @@ const StartTopic = () => {
     });
   }, [navigate]);
 
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'application/pdf') {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a PDF file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPdfFile(file);
+    setIsProcessingPdf(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const { data, error } = await supabase.functions.invoke('process_pdf', {
+        body: formData,
+      });
+
+      if (error) throw error;
+
+      setTopicInput(data.extractedText);
+      toast({
+        title: "PDF processed successfully",
+        description: "Text extracted from PDF. You can now generate materials.",
+      });
+    } catch (error: any) {
+      console.error('Error processing PDF:', error);
+      toast({
+        title: "Error processing PDF",
+        description: error.message || "Failed to extract text from PDF",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingPdf(false);
+    }
+  };
+
   const handleGenerateModule = async () => {
     if (!topicInput.trim()) {
       toast({
         title: "Please enter a topic",
-        description: "You need to provide a topic to learn about",
+        description: "You need to provide a topic or upload a PDF",
         variant: "destructive",
       });
       return;
@@ -296,8 +341,32 @@ const StartTopic = () => {
               )}
 
               {inputMethod === "pdf" && (
-                <div className="p-8 border-2 border-dashed border-border rounded-lg text-center text-muted-foreground">
-                  <p>PDF upload feature coming soon!</p>
+                <div className="space-y-4">
+                  <Label htmlFor="pdf-input">Upload PDF (supports handwritten notes)</Label>
+                  <div className="flex items-center gap-4">
+                    <Input
+                      id="pdf-input"
+                      type="file"
+                      accept=".pdf"
+                      onChange={handlePdfUpload}
+                      disabled={isProcessingPdf}
+                      className="cursor-pointer"
+                    />
+                  </div>
+                  {isProcessingPdf && (
+                    <p className="text-sm text-muted-foreground">Processing PDF and extracting text...</p>
+                  )}
+                  {pdfFile && !isProcessingPdf && (
+                    <p className="text-sm text-green-600">PDF processed: {pdfFile.name}</p>
+                  )}
+                  {topicInput && !isProcessingPdf && (
+                    <div className="mt-4 p-4 border border-border rounded-lg">
+                      <Label className="text-sm font-semibold mb-2">Extracted Content:</Label>
+                      <div className="mt-2 max-h-60 overflow-y-auto text-sm text-muted-foreground">
+                        {topicInput.substring(0, 500)}...
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -336,12 +405,12 @@ const StartTopic = () => {
                 </div>
               )}
 
-              {inputMethod === "type" && (
+              {(inputMethod === "type" || (inputMethod === "pdf" && topicInput && !isProcessingPdf)) && (
                 <Button 
                   size="lg" 
                   className="w-full md:w-auto"
                   onClick={handleGenerateModule}
-                  disabled={isGenerating}
+                  disabled={isGenerating || isProcessingPdf}
                 >
                   {isGenerating ? "Generating Learning Module..." : "Generate Learning Module"}
                 </Button>
