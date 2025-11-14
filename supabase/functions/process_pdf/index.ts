@@ -25,9 +25,16 @@ serve(async (req) => {
 
     console.log('Processing PDF file:', file.name);
 
-    // Convert file to base64 for OpenAI
+    // Convert file to base64 for OpenAI (process in chunks to avoid stack overflow)
     const arrayBuffer = await file.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const chunkSize = 0x8000; // 32KB chunks
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const base64 = btoa(binary);
 
     // Use OpenAI's vision model to extract text from PDF (supports OCR for handwritten notes)
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
