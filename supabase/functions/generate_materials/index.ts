@@ -12,10 +12,10 @@ serve(async (req) => {
   }
 
   try {
-    const { topicName, userId, materialType } = await req.json();
+    const { topicName, userId, topicId } = await req.json();
 
-    if (!topicName || !userId) {
-      throw new Error('topicName and userId are required');
+    if (!topicName || !userId || !topicId) {
+      throw new Error('topicName, userId, and topicId are required');
     }
 
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
@@ -148,16 +148,13 @@ FORMULA SHEET REQUIREMENTS:
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Create topic
-    const { data: topic, error: topicError } = await supabase
+    // Update existing topic with summary
+    const { error: topicError } = await supabase
       .from('topics')
-      .insert({
-        user_id: userId,
-        name: topicName,
+      .update({
         summary: materials.summary
       })
-      .select()
-      .single();
+      .eq('id', topicId);
 
     if (topicError) throw topicError;
 
@@ -165,7 +162,7 @@ FORMULA SHEET REQUIREMENTS:
     const { error: mindmapError } = await supabase
       .from('mindmaps')
       .insert({
-        topic_id: topic.id,
+        topic_id: topicId,
         nodes_json: materials.mindmap.nodes,
         edges_json: materials.mindmap.edges
       });
@@ -176,7 +173,7 @@ FORMULA SHEET REQUIREMENTS:
     const { error: flashcardsError } = await supabase
       .from('flashcards')
       .insert({
-        topic_id: topic.id,
+        topic_id: topicId,
         flashcard_json: materials.flashcards
       });
 
@@ -186,7 +183,7 @@ FORMULA SHEET REQUIREMENTS:
     const { error: quizError } = await supabase
       .from('materials')
       .insert({
-        topic_id: topic.id,
+        topic_id: topicId,
         material_type: 'quiz',
         content: materials.quiz
       });
@@ -197,7 +194,7 @@ FORMULA SHEET REQUIREMENTS:
     const { error: formulaError } = await supabase
       .from('materials')
       .insert({
-        topic_id: topic.id,
+        topic_id: topicId,
         material_type: 'formula_sheet',
         content: materials.formula_sheet
       });
@@ -208,7 +205,7 @@ FORMULA SHEET REQUIREMENTS:
 
     return new Response(
       JSON.stringify({
-        topicId: topic.id,
+        topicId: topicId,
         ...materials
       }),
       {
