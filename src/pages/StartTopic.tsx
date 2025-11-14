@@ -191,8 +191,15 @@ const StartTopic = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    {generatedMaterials.formulaSheet || "No formula sheet available"}
+                  <div className="space-y-4">
+                    {generatedMaterials.formula_sheet?.formulas?.map((formula: any, index: number) => (
+                      <div key={index} className="p-4 border border-border rounded-lg">
+                        <h4 className="font-semibold text-foreground mb-2">{formula.name}</h4>
+                        <p className="font-mono text-sm bg-muted p-2 rounded mb-2">{formula.formula}</p>
+                        <p className="text-sm text-muted-foreground mb-1">{formula.description}</p>
+                        {formula.example && <p className="text-xs text-muted-foreground italic">Example: {formula.example}</p>}
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -206,7 +213,7 @@ const StartTopic = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
-                    {generatedMaterials.quiz?.map((question: any, index: number) => (
+                    {generatedMaterials.quiz?.questions?.map((question: any, index: number) => (
                       <Card key={index}>
                         <CardContent className="pt-6">
                           <div className="space-y-4">
@@ -219,7 +226,7 @@ const StartTopic = () => {
                                 <div 
                                   key={optIndex}
                                   className={`p-3 rounded-md border ${
-                                    optIndex === question.correctAnswer 
+                                    optIndex === question.correct 
                                       ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
                                       : 'border-border'
                                   }`}
