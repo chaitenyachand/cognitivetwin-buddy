@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.log_partial]
 verify_jwt = true
+
+[functions.process_pdf]
+verify_jwt = true

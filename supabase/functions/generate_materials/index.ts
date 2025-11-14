@@ -182,6 +182,28 @@ FORMULA SHEET REQUIREMENTS:
 
     if (flashcardsError) throw flashcardsError;
 
+    // Create quiz in materials table
+    const { error: quizError } = await supabase
+      .from('materials')
+      .insert({
+        topic_id: topic.id,
+        material_type: 'quiz',
+        content: materials.quiz
+      });
+
+    if (quizError) throw quizError;
+
+    // Create formula_sheet in materials table
+    const { error: formulaError } = await supabase
+      .from('materials')
+      .insert({
+        topic_id: topic.id,
+        material_type: 'formula_sheet',
+        content: materials.formula_sheet
+      });
+
+    if (formulaError) throw formulaError;
+
     console.log('Materials generated successfully for topic:', topicName);
 
     return new Response(
