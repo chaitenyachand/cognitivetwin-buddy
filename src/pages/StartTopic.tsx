@@ -14,6 +14,9 @@ import MindmapViewer from "@/components/MindmapViewer";
 import FlipCard from "@/components/FlipCard";
 import InteractiveQuiz from "@/components/InteractiveQuiz";
 import ReactMarkdown from "react-markdown";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
+// Use CDN worker to avoid bundling issues
+GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.7.76/pdf.worker.min.js";
 
 const StartTopic = () => {
   const navigate = useNavigate();
