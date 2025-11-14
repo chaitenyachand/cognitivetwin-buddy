@@ -175,9 +175,9 @@ const Dashboard = () => {
         <div className="px-8 py-8">
           <Tabs defaultValue="dashboard" className="space-y-8">
             <TabsList className="bg-muted/50 p-1 rounded-xl">
-              <TabsTrigger value="dashboard" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">📊 Dashboard</TabsTrigger>
-              <TabsTrigger value="topics" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">📚 Topics</TabsTrigger>
-              <TabsTrigger value="next-steps" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">🎯 Next Steps</TabsTrigger>
+              <TabsTrigger value="dashboard" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Dashboard</TabsTrigger>
+              <TabsTrigger value="topics" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Topics</TabsTrigger>
+              <TabsTrigger value="next-steps" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Next Steps</TabsTrigger>
             </TabsList>
 
             <TabsContent value="dashboard" className="space-y-8 mt-8 animate-fade-in">
@@ -197,7 +197,6 @@ const Dashboard = () => {
                   ) : topics.length === 0 ? (
                     <Card className="border-dashed border-2">
                       <CardContent className="pt-12 pb-12 text-center">
-                        <span className="text-3xl mb-4 block">📚</span>
                         <p className="text-muted-foreground">No topics yet</p>
                       </CardContent>
                     </Card>
@@ -227,7 +226,6 @@ const Dashboard = () => {
               ) : topics.length === 0 ? (
                 <Card className="border-dashed border-2">
                   <CardContent className="pt-16 pb-16 text-center">
-                    <span className="text-5xl mb-6 block">📚</span>
                     <p className="text-muted-foreground text-xl">No topics yet</p>
                   </CardContent>
                 </Card>
