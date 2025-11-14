@@ -28,6 +28,7 @@ const Dashboard = () => {
     topicName: string;
     topicId: string;
   } | null>(null);
+  const [hasCompletedQuiz, setHasCompletedQuiz] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -69,6 +70,15 @@ const Dashboard = () => {
 
       if (activityError) throw activityError;
       setActivityData(activityLogData || []);
+
+      // Check if user has completed any quizzes
+      const { data: quizData } = await supabase
+        .from("quiz_results")
+        .select("id")
+        .eq("user_id", userId)
+        .limit(1);
+      
+      setHasCompletedQuiz((quizData?.length || 0) > 0);
     } catch (error: any) {
       toast({
         title: "Error loading dashboard data",
@@ -166,9 +176,9 @@ const Dashboard = () => {
         <div className="border-b border-border bg-gradient-to-r from-card/50 via-card/80 to-card/50 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
           <div className="px-8 py-8">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              {topics.length === 0 ? `Welcome, ${user?.user_metadata?.name || "Student"}! 👋` : `Welcome back, ${user?.user_metadata?.name || "Student"}! 👋`}
+              {hasCompletedQuiz ? `Welcome back, ${user?.user_metadata?.name || "Student"}! 👋` : `Welcome, ${user?.user_metadata?.name || "Student"}! 👋`}
             </h1>
-            <p className="text-muted-foreground mt-2">{topics.length === 0 ? "Start your learning journey" : "Continue your learning journey"}</p>
+            <p className="text-muted-foreground mt-2">{hasCompletedQuiz ? "Continue your learning journey" : "Start your learning journey"}</p>
           </div>
         </div>
 
