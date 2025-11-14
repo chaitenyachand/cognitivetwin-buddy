@@ -65,13 +65,20 @@ const InteractiveQuiz = ({ questions, topicId, userId }: InteractiveQuizProps) =
     
     // Identify weak areas
     const weakAreas: string[] = [];
+    const weakQuestions: Array<{ question: string; correctAnswer: string }> = [];
+    
     questions.forEach((q, idx) => {
       if (finalAnswers[idx] !== q.correctIndex) {
         weakAreas.push(q.question.substring(0, 50));
+        weakQuestions.push({
+          question: q.question,
+          correctAnswer: q.options[q.correctIndex]
+        });
       }
     });
 
     try {
+      // Save quiz result
       await supabase.from("quiz_results").insert({
         user_id: userId,
         topic_id: topicId,
@@ -82,12 +89,53 @@ const InteractiveQuiz = ({ questions, topicId, userId }: InteractiveQuizProps) =
           : "Great job! You've mastered this topic."
       });
 
+      // Update topic's best score and progress
+      const { data: currentTopic } = await supabase
+        .from("topics")
+        .select("best_score, name")
+        .eq("id", topicId)
+        .single();
+
+      if (currentTopic) {
+        const newBestScore = Math.max(currentTopic.best_score || 0, finalScore);
+        const newProgress = Math.min(100, Math.round(newBestScore * 0.8 + (finalScore >= 70 ? 20 : 0)));
+
+        await supabase
+          .from("topics")
+          .update({
+            best_score: newBestScore,
+            progress: newProgress
+          })
+          .eq("id", topicId);
+
+        // Create weak topic entries if score < 70
+        if (finalScore < 70 && weakQuestions.length > 0) {
+          const weakTopicEntries = weakQuestions.map(wq => ({
+            user_id: userId,
+            topic_id: topicId,
+            topic_name: currentTopic.name,
+            weak_area: wq.question.substring(0, 100),
+            score: finalScore,
+            identified_from: "quiz",
+            notes: `Correct answer: ${wq.correctAnswer}`,
+            addressed: false
+          }));
+
+          await supabase.from("weak_topics").insert(weakTopicEntries);
+        }
+      }
+
       toast({
         title: "Quiz Complete!",
         description: `You scored ${Math.round(finalScore)}%`,
       });
     } catch (error) {
       console.error("Error saving quiz result:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save quiz results",
+        variant: "destructive"
+      });
     }
   };
 
