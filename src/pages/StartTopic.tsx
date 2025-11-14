@@ -10,6 +10,10 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import MindmapViewer from "@/components/MindmapViewer";
+import FlipCard from "@/components/FlipCard";
+import InteractiveQuiz from "@/components/InteractiveQuiz";
+import ReactMarkdown from "react-markdown";
 
 const StartTopic = () => {
   const navigate = useNavigate();
@@ -118,7 +122,7 @@ const StartTopic = () => {
           <div className="px-8 py-12 max-w-6xl mx-auto">
             <div className="flex justify-between items-center mb-6">
               <h1 className="text-4xl font-bold text-foreground">
-                🎉 Learning Materials Generated!
+                Learning Materials Generated!
               </h1>
               <Button onClick={() => navigate("/dashboard")}>
                 Go to Dashboard
@@ -130,12 +134,12 @@ const StartTopic = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-2xl flex items-center gap-2">
-                    📝 Summary
+                    Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="prose prose-sm max-w-none dark:prose-invert">
-                    {generatedMaterials.summary || "No summary available"}
+                    <ReactMarkdown>{generatedMaterials.summary || "No summary available"}</ReactMarkdown>
                   </div>
                 </CardContent>
               </Card>
@@ -144,33 +148,15 @@ const StartTopic = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-2xl flex items-center gap-2">
-                    🗺️ Mind Map
+                    Mind Map
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {typeof generatedMaterials.mindmap === 'string' ? (
-                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                      {generatedMaterials.mindmap}
-                    </div>
-                  ) : generatedMaterials.mindmap?.nodes ? (
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm font-semibold text-foreground mb-2">Concepts</p>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {generatedMaterials.mindmap.nodes.map((n: any, i: number) => (
-                            <li key={i} className="text-sm text-foreground">{n.label}</li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground mb-2">Connections</p>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {generatedMaterials.mindmap.edges.map((e: any, i: number) => (
-                            <li key={i} className="text-sm text-muted-foreground">{e.source} → {e.target}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
+                  {generatedMaterials.mindmap?.nodes ? (
+                    <MindmapViewer 
+                      nodes={generatedMaterials.mindmap.nodes} 
+                      edges={generatedMaterials.mindmap.edges} 
+                    />
                   ) : (
                     <p className="text-muted-foreground">No mindmap available</p>
                   )}
@@ -181,26 +167,13 @@ const StartTopic = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-2xl flex items-center gap-2">
-                    🎴 Flashcards
+                    Flashcards
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {generatedMaterials.flashcards?.map((card: any, index: number) => (
-                      <Card key={index}>
-                        <CardContent className="pt-6">
-                          <div className="space-y-4">
-                            <div>
-                              <p className="text-sm font-semibold text-muted-foreground mb-1">Question</p>
-                              <p className="text-foreground font-medium">{card.front}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-muted-foreground mb-1">Answer</p>
-                              <p className="text-muted-foreground">{card.back}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      <FlipCard key={index} front={card.front} back={card.back} />
                     ))}
                   </div>
                 </CardContent>
@@ -210,7 +183,7 @@ const StartTopic = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-2xl flex items-center gap-2">
-                    📐 Formula Sheet
+                    Formula Sheet
                   </CardTitle>
                 </CardHeader>
                 <CardContent>

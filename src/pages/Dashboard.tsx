@@ -26,6 +26,7 @@ const Dashboard = () => {
     type: "summary" | "mindmap" | "flashcards" | "formula_sheet" | "quiz";
     content: any;
     topicName: string;
+    topicId: string;
   } | null>(null);
 
   useEffect(() => {
@@ -97,6 +98,7 @@ const Dashboard = () => {
           type: "summary",
           content: topicData.summary,
           topicName,
+          topicId,
         });
       } else {
         // Get other materials from materials table
@@ -113,6 +115,7 @@ const Dashboard = () => {
           type: materialType,
           content: materialData.content,
           topicName,
+          topicId,
         });
       }
 
@@ -333,6 +336,8 @@ const Dashboard = () => {
           type={selectedMaterial.type}
           content={selectedMaterial.content}
           topicName={selectedMaterial.topicName}
+          topicId={selectedMaterial.topicId}
+          userId={user?.id}
         />
       )}
     </div>
