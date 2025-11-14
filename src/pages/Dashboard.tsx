@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Flame } from "lucide-react";
 import MaterialViewer from "@/components/MaterialViewer";
+import WeakTopicsSection from "@/components/WeakTopicsSection";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -292,41 +293,10 @@ const Dashboard = () => {
 
             {/* Next Steps Tab */}
             <TabsContent value="next-steps" className="space-y-6 mt-6">
-              <h2 className="text-2xl font-bold text-foreground">Next Steps</h2>
+              <h2 className="text-2xl font-bold text-foreground">Areas to Focus On</h2>
+              <p className="text-muted-foreground">Identified weak areas and recommended next steps based on your performance</p>
               
-              {loading ? (
-                <p className="text-muted-foreground">Loading recommendations...</p>
-              ) : topics.length === 0 ? (
-                <Card>
-                  <CardContent className="pt-6 text-center text-muted-foreground">
-                    <p>Complete some topics and quizzes to get personalized recommendations!</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <>
-                  <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-                    <CardContent className="pt-6">
-                      <p className="text-sm text-yellow-900 dark:text-yellow-200">
-                        💡 Review topics where you scored below 70% to improve your understanding
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  {topics
-                    .filter(topic => topic.best_score < 70)
-                    .map((topic) => (
-                      <div key={topic.id} className="space-y-4">
-                        <h3 className="text-xl font-bold text-foreground">{topic.name}</h3>
-                        <p className="text-sm text-muted-foreground">Best Score: {topic.best_score}%</p>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                          <Button variant="secondary" className="w-full">Review Summary</Button>
-                          <Button variant="secondary" className="w-full">Practice Quiz</Button>
-                          <Button variant="secondary" className="w-full">View Flashcards</Button>
-                        </div>
-                      </div>
-                    ))}
-                </>
-              )}
+              <WeakTopicsSection userId={user?.id || ''} onViewMaterial={handleViewMaterial} />
             </TabsContent>
           </Tabs>
         </div>

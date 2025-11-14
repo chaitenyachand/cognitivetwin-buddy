@@ -12,19 +12,37 @@ serve(async (req) => {
   }
 
   try {
-    const { imageUrl, chatHistory, question } = await req.json();
+    const { imageUrl, chatHistory, question, materials } = await req.json();
     console.log('Explaining visual with question:', question);
+    console.log('Materials available:', materials ? 'Yes' : 'No');
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
+    // Enhanced system prompt with material awareness
+    let systemPrompt = 'You are an expert educational tutor. Explain diagrams and visuals clearly and engagingly. Keep explanations concise (2-3 sentences) and suitable for voice delivery.';
+    
+    if (materials) {
+      systemPrompt += '\n\nYou have access to the following learning materials:';
+      if (materials.summary) {
+        systemPrompt += `\n\nSUMMARY:\n${materials.summary}`;
+      }
+      if (materials.flashcards && materials.flashcards.length > 0) {
+        systemPrompt += `\n\nKEY CONCEPTS (from flashcards):\n${materials.flashcards.map((fc: any) => `- ${fc.front}`).join('\n')}`;
+      }
+      if (materials.mindmap) {
+        systemPrompt += `\n\nMINDMAP STRUCTURE:\n${materials.mindmap.nodes ? materials.mindmap.nodes.map((n: any) => n.label).join(', ') : ''}`;
+      }
+      systemPrompt += '\n\nWhen asked about these materials (summary, flashcards, mindmap), refer to them directly and explain from that context.';
+    }
+
     // Build messages array with chat history
     const messages: any[] = [
       {
         role: 'system',
-        content: 'You are an expert educational tutor. Explain diagrams and visuals clearly and engagingly. Keep explanations concise (2-3 sentences) and suitable for voice delivery. Answer questions about the visual specifically.'
+        content: systemPrompt
       }
     ];
 

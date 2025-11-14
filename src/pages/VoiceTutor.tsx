@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import aiAvatar from "@/assets/ai-avatar.avif";
 
-type CallState = 'idle' | 'generating_visual' | 'explaining_visual' | 'listening_to_user' | 'processing_audio';
+type CallState = 'idle' | 'generating_visual' | 'explaining_visual' | 'listening_to_user' | 'processing_audio' | 'conducting_viva';
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 type Persona = 'empathetic' | 'encouraging' | 'neutral' | 'authoritative';
 
@@ -20,16 +20,21 @@ const VoiceTutor = () => {
   
   const [userName, setUserName] = useState<string>("");
   const [topic, setTopic] = useState<string>("");
+  const [topicId, setTopicId] = useState<string | null>(null);
   const [persona, setPersona] = useState<Persona>('empathetic');
   const [callState, setCallState] = useState<CallState>('idle');
   const [visualUrl, setVisualUrl] = useState<string | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [materials, setMaterials] = useState<any>(null);
+  const [isVivaMode, setIsVivaMode] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -42,10 +47,23 @@ const VoiceTutor = () => {
     });
 
     // Get topic from navigation state
-    const state = location.state as { topic?: string };
+    const state = location.state as { topic?: string; topicId?: string };
     if (state?.topic) {
       setTopic(state.topic);
     }
+    if (state?.topicId) {
+      setTopicId(state.topicId);
+    }
+
+    // Load voices for speech synthesis
+    const loadVoices = () => {
+      speechSynthesis.getVoices();
+    };
+    
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = loadVoices;
+    }
+    loadVoices();
   }, [navigate, location]);
 
   const startVoiceSession = async () => {
@@ -67,6 +85,11 @@ const VoiceTutor = () => {
       if (sessionError) throw sessionError;
       setSessionId(session.id);
 
+      // Load materials if topic ID is available
+      if (topicId) {
+        await loadMaterials();
+      }
+
       // Generate visual
       const { data: visualData, error: visualError } = await supabase.functions.invoke(
         'generate_visual',
@@ -86,7 +109,8 @@ const VoiceTutor = () => {
           body: {
             imageUrl: visualData.imageUrl,
             chatHistory: [],
-            question: null
+            question: null,
+            materials: materials
           }
         }
       );
@@ -116,22 +140,103 @@ const VoiceTutor = () => {
     }
   };
 
+  const loadMaterials = async () => {
+    try {
+      // Load summary from topics table
+      const { data: topicData } = await supabase
+        .from('topics')
+        .select('summary')
+        .eq('id', topicId)
+        .single();
+
+      // Load other materials
+      const { data: materialsData } = await supabase
+        .from('materials')
+        .select('*')
+        .eq('topic_id', topicId);
+
+      const loadedMaterials: any = {
+        summary: topicData?.summary || null,
+        flashcards: null,
+        mindmap: null,
+        quiz: null
+      };
+
+      if (materialsData) {
+        materialsData.forEach((mat: any) => {
+          if (mat.material_type === 'flashcards') {
+            loadedMaterials.flashcards = mat.content;
+          } else if (mat.material_type === 'mindmap') {
+            loadedMaterials.mindmap = mat.content;
+          } else if (mat.material_type === 'quiz') {
+            loadedMaterials.quiz = mat.content;
+          }
+        });
+      }
+
+      setMaterials(loadedMaterials);
+
+    } catch (error) {
+      console.error('Error loading materials:', error);
+    }
+  };
+
   const speakText = async (text: string): Promise<void> => {
     return new Promise((resolve) => {
+      // Cancel any ongoing speech
+      speechSynthesis.cancel();
+      
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1.0;
+      
+      // Select female voice
+      const voices = speechSynthesis.getVoices();
+      const femaleVoice = voices.find(voice => 
+        voice.name.includes('Female') || 
+        voice.name.includes('Samantha') ||
+        voice.name.includes('Victoria') ||
+        voice.name.includes('Karen') ||
+        (voice.lang.includes('en') && voice.name.includes('Google US English'))
+      ) || voices.find(voice => voice.lang.includes('en'));
+      
+      if (femaleVoice) {
+        utterance.voice = femaleVoice;
+      }
+      
+      utterance.rate = 1.0; // Natural speaking rate
+      utterance.pitch = 1.1; // Slightly higher for more natural female voice
       utterance.volume = 1.0;
       
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
+      currentUtteranceRef.current = utterance;
+      setIsSpeaking(true);
+      
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        currentUtteranceRef.current = null;
+        resolve();
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        currentUtteranceRef.current = null;
+        resolve();
+      };
       
       speechSynthesis.speak(utterance);
     });
   };
 
+  const stopSpeaking = () => {
+    if (isSpeaking) {
+      speechSynthesis.cancel();
+      setIsSpeaking(false);
+      currentUtteranceRef.current = null;
+    }
+  };
+
   const startRecording = async () => {
     try {
+      // Stop current speech when user starts speaking
+      stopSpeaking();
+      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -192,7 +297,27 @@ const VoiceTutor = () => {
         };
         setChatHistory(prev => [...prev, userMessage]);
 
-        // Get AI explanation
+        const userText = transcriptData.text.toLowerCase();
+
+        // Check for viva test request
+        if (userText.includes('test') || userText.includes('quiz') || userText.includes('viva') || userText.includes('examine')) {
+          await handleVivaRequest();
+          return;
+        }
+
+        // Handle viva mode
+        if (isVivaMode) {
+          await handleVivaAnswer(transcriptData.text);
+          return;
+        }
+
+        // Check for material explanation requests
+        if (userText.includes('summary') || userText.includes('flashcard') || userText.includes('mindmap') || userText.includes('explain from')) {
+          await handleMaterialExplanation(transcriptData.text);
+          return;
+        }
+
+        // Normal explanation flow
         setCallState('explaining_visual');
 
         const { data: explainData, error: explainError } = await supabase.functions.invoke(
@@ -201,7 +326,8 @@ const VoiceTutor = () => {
             body: {
               imageUrl: visualUrl,
               chatHistory: [...chatHistory, userMessage],
-              question: transcriptData.text
+              question: transcriptData.text,
+              materials: materials
             }
           }
         );
@@ -214,10 +340,7 @@ const VoiceTutor = () => {
         };
         setChatHistory(prev => [...prev, aiMessage]);
 
-        // Speak the response
         await speakText(explainData.explanation);
-
-        // Ready for next question
         setCallState('listening_to_user');
       };
 
@@ -228,6 +351,173 @@ const VoiceTutor = () => {
         description: "Failed to process audio",
         variant: "destructive"
       });
+      setCallState('listening_to_user');
+    }
+  };
+
+  const handleMaterialExplanation = async (userText: string) => {
+    setCallState('explaining_visual');
+
+    const { data: explainData, error } = await supabase.functions.invoke(
+      'explain_visual',
+      {
+        body: {
+          imageUrl: visualUrl,
+          chatHistory: chatHistory,
+          question: userText,
+          materials: materials
+        }
+      }
+    );
+
+    if (error) throw error;
+
+    const aiMessage: ChatMessage = {
+      role: 'assistant',
+      content: explainData.explanation
+    };
+    setChatHistory(prev => [...prev, aiMessage]);
+
+    await speakText(explainData.explanation);
+    setCallState('listening_to_user');
+  };
+
+  const handleVivaRequest = async () => {
+    try {
+      setIsVivaMode(true);
+      setCallState('conducting_viva');
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { data, error } = await supabase.functions.invoke('conduct_viva', {
+        body: {
+          action: 'start',
+          topicId: topicId,
+          topicName: topic,
+          materials: materials,
+          userId: user?.id
+        }
+      });
+
+      if (error) throw error;
+
+      const aiMessage: ChatMessage = {
+        role: 'assistant',
+        content: data.question
+      };
+      setChatHistory(prev => [...prev, aiMessage]);
+
+      await speakText(data.question);
+      setCallState('listening_to_user');
+
+    } catch (error: any) {
+      console.error('Error starting viva:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start viva test",
+        variant: "destructive"
+      });
+      setIsVivaMode(false);
+      setCallState('listening_to_user');
+    }
+  };
+
+  const handleVivaAnswer = async (userResponse: string) => {
+    try {
+      setCallState('conducting_viva');
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { data, error } = await supabase.functions.invoke('conduct_viva', {
+        body: {
+          action: 'answer',
+          topicId: topicId,
+          topicName: topic,
+          materials: materials,
+          conversationHistory: chatHistory,
+          userResponse: userResponse,
+          userId: user?.id
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.vivaComplete) {
+        // End viva and get assessment
+        await endViva();
+      } else {
+        const aiMessage: ChatMessage = {
+          role: 'assistant',
+          content: data.question
+        };
+        setChatHistory(prev => [...prev, aiMessage]);
+
+        await speakText(data.question);
+        setCallState('listening_to_user');
+      }
+
+    } catch (error: any) {
+      console.error('Error processing viva answer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process answer",
+        variant: "destructive"
+      });
+      setCallState('listening_to_user');
+    }
+  };
+
+  const endViva = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { data, error } = await supabase.functions.invoke('conduct_viva', {
+        body: {
+          action: 'end',
+          topicId: topicId,
+          topicName: topic,
+          materials: materials,
+          conversationHistory: chatHistory,
+          userId: user?.id
+        }
+      });
+
+      if (error) throw error;
+
+      const assessment = data.assessment;
+      
+      const feedbackMessage = `Your viva is complete! You scored ${assessment.score} out of 100. ${assessment.feedback}`;
+      
+      const aiMessage: ChatMessage = {
+        role: 'assistant',
+        content: feedbackMessage
+      };
+      setChatHistory(prev => [...prev, aiMessage]);
+
+      await speakText(feedbackMessage);
+
+      // Speak weak areas
+      if (assessment.weakAreas && assessment.weakAreas.length > 0) {
+        const weakAreasText = `Areas to focus on: ${assessment.weakAreas.join(', ')}. These have been added to your next steps for review.`;
+        await speakText(weakAreasText);
+      }
+
+      toast({
+        title: "Viva Complete",
+        description: `Score: ${assessment.score}/100. Check Next Steps tab for weak areas.`,
+      });
+
+      setIsVivaMode(false);
+      setCallState('listening_to_user');
+
+    } catch (error: any) {
+      console.error('Error ending viva:', error);
+      toast({
+        title: "Error",
+        description: "Failed to complete viva assessment",
+        variant: "destructive"
+      });
+      setIsVivaMode(false);
       setCallState('listening_to_user');
     }
   };
@@ -260,7 +550,8 @@ const VoiceTutor = () => {
     switch (callState) {
       case "generating_visual": return "🎨 Generating visual...";
       case "explaining_visual": return "🗣️ AI is explaining...";
-      case "listening_to_user": return "🎙️ Your turn to speak";
+      case "conducting_viva": return isVivaMode ? "📝 Viva examination in progress" : "🗣️ AI is explaining...";
+      case "listening_to_user": return isVivaMode ? "🎙️ Answer the question" : "🎙️ Your turn to speak";
       case "processing_audio": return "💭 Processing...";
       default: return "Press to start";
     }
@@ -270,7 +561,8 @@ const VoiceTutor = () => {
     switch (callState) {
       case "generating_visual": return "ring-blue-500 shadow-blue-500/50";
       case "explaining_visual": return "ring-purple-500 shadow-purple-500/50";
-      case "listening_to_user": return "ring-green-500 shadow-green-500/50";
+      case "conducting_viva": return "ring-orange-500 shadow-orange-500/50";
+      case "listening_to_user": return isVivaMode ? "ring-yellow-500 shadow-yellow-500/50" : "ring-green-500 shadow-green-500/50";
       case "processing_audio": return "ring-amber-500 shadow-amber-500/50";
       default: return "ring-gray-300";
     }
