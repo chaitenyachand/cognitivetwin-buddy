@@ -52,15 +52,24 @@ const MaterialViewer = ({ open, onOpenChange, type, content, topicName }: Materi
 
       case "formula_sheet":
         return (
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            <ReactMarkdown>{content}</ReactMarkdown>
+          <div className="space-y-4">
+            {content?.formulas?.map((formula: any, index: number) => (
+              <Card key={index}>
+                <CardContent className="pt-6">
+                  <h4 className="font-semibold text-foreground mb-2">{formula.name}</h4>
+                  <p className="font-mono text-sm bg-muted p-2 rounded mb-2">{formula.formula}</p>
+                  <p className="text-sm text-muted-foreground mb-1">{formula.description}</p>
+                  {formula.example && <p className="text-xs text-muted-foreground italic">Example: {formula.example}</p>}
+                </CardContent>
+              </Card>
+            ))}
           </div>
         );
 
       case "quiz":
         return (
           <div className="space-y-6">
-            {content.map((question: any, index: number) => (
+            {content?.questions?.map((question: any, index: number) => (
               <Card key={index}>
                 <CardContent className="pt-6">
                   <div className="space-y-4">
@@ -73,7 +82,7 @@ const MaterialViewer = ({ open, onOpenChange, type, content, topicName }: Materi
                         <div 
                           key={optIndex}
                           className={`p-3 rounded-md border ${
-                            optIndex === question.correctAnswer 
+                            optIndex === question.correct 
                               ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
                               : 'border-border'
                           }`}
