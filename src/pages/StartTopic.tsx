@@ -199,7 +199,7 @@ const StartTopic = () => {
                   onClick={handleGenerateModule}
                   disabled={isGenerating}
                 >
-                  {isGenerating ? "Creating Topic..." : "Create Topic"}
+                  {isGenerating ? "Generating Learning Module..." : "Generate Learning Module"}
                 </Button>
               )}
             </CardContent>
