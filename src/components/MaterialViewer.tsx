@@ -23,9 +23,41 @@ const MaterialViewer = ({ open, onOpenChange, type, content, topicName }: Materi
 
       case "mindmap":
         return (
-          <div className="prose prose-sm max-w-none dark:prose-invert">
-            <ReactMarkdown>{content}</ReactMarkdown>
-          </div>
+          (() => {
+            const graph: any = content;
+            const isGraph = graph && typeof graph === 'object' && 'nodes' in graph && 'edges' in graph;
+            if (isGraph) {
+              return (
+                <div className="space-y-4">
+                  <div>
+                    <Badge variant="secondary" className="mb-2">Concepts</Badge>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {graph.nodes?.map((n: any, i: number) => (
+                        <li key={i} className="text-sm text-foreground">
+                          {n.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <Badge variant="outline" className="mb-2">Connections</Badge>
+                    <ul className="list-disc pl-5 space-y-1">
+                      {graph.edges?.map((e: any, i: number) => (
+                        <li key={i} className="text-sm text-muted-foreground">
+                          {e.source} → {e.target}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="prose prose-sm max-w-none dark:prose-invert">
+                <ReactMarkdown>{String(content ?? '')}</ReactMarkdown>
+              </div>
+            );
+          })()
         );
 
       case "flashcards":
