@@ -2,6 +2,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import ReactMarkdown from "react-markdown";
+import MindmapViewer from "./MindmapViewer";
+import FlipCard from "./FlipCard";
+import InteractiveQuiz from "./InteractiveQuiz";
 
 interface MaterialViewerProps {
   open: boolean;
@@ -9,9 +12,11 @@ interface MaterialViewerProps {
   type: "summary" | "mindmap" | "flashcards" | "formula_sheet" | "quiz";
   content: any;
   topicName: string;
+  topicId?: string;
+  userId?: string;
 }
 
-const MaterialViewer = ({ open, onOpenChange, type, content, topicName }: MaterialViewerProps) => {
+const MaterialViewer = ({ open, onOpenChange, type, content, topicName, topicId, userId }: MaterialViewerProps) => {
   const renderContent = () => {
     switch (type) {
       case "summary":
@@ -22,62 +27,16 @@ const MaterialViewer = ({ open, onOpenChange, type, content, topicName }: Materi
         );
 
       case "mindmap":
-        return (
-          (() => {
-            const graph: any = content;
-            const isGraph = graph && typeof graph === 'object' && 'nodes' in graph && 'edges' in graph;
-            if (isGraph) {
-              return (
-                <div className="space-y-4">
-                  <div>
-                    <Badge variant="secondary" className="mb-2">Concepts</Badge>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {graph.nodes?.map((n: any, i: number) => (
-                        <li key={i} className="text-sm text-foreground">
-                          {n.label}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <Badge variant="outline" className="mb-2">Connections</Badge>
-                    <ul className="list-disc pl-5 space-y-1">
-                      {graph.edges?.map((e: any, i: number) => (
-                        <li key={i} className="text-sm text-muted-foreground">
-                          {e.source} → {e.target}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              );
-            }
-            return (
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                <ReactMarkdown>{String(content ?? '')}</ReactMarkdown>
-              </div>
-            );
-          })()
-        );
+        if (content && typeof content === 'object' && 'nodes' in content && 'edges' in content) {
+          return <MindmapViewer nodes={content.nodes} edges={content.edges} />;
+        }
+        return <p className="text-muted-foreground">No mindmap available</p>;
 
       case "flashcards":
         return (
-          <div className="space-y-4">
-            {content.map((card: any, index: number) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Badge variant="secondary" className="mb-2">Question</Badge>
-                      <p className="text-foreground font-medium">{card.front}</p>
-                    </div>
-                    <div>
-                      <Badge variant="outline" className="mb-2">Answer</Badge>
-                      <p className="text-muted-foreground">{card.back}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {content?.map((card: any, index: number) => (
+              <FlipCard key={index} front={card.front} back={card.back} />
             ))}
           </div>
         );
@@ -99,39 +58,15 @@ const MaterialViewer = ({ open, onOpenChange, type, content, topicName }: Materi
         );
 
       case "quiz":
+        if (!topicId || !userId) {
+          return <p className="text-muted-foreground">Unable to load quiz</p>;
+        }
         return (
-          <div className="space-y-6">
-            {content?.questions?.map((question: any, index: number) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div>
-                      <Badge variant="secondary" className="mb-2">Question {index + 1}</Badge>
-                      <p className="text-foreground font-medium">{question.question}</p>
-                    </div>
-                    <div className="space-y-2">
-                      {question.options.map((option: string, optIndex: number) => (
-                        <div 
-                          key={optIndex}
-                          className={`p-3 rounded-md border ${
-                            optIndex === question.correct 
-                              ? 'border-green-500 bg-green-50 dark:bg-green-950/20' 
-                              : 'border-border'
-                          }`}
-                        >
-                          <p className="text-sm">{option}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div>
-                      <Badge variant="outline" className="mb-2">Explanation</Badge>
-                      <p className="text-sm text-muted-foreground">{question.explanation}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <InteractiveQuiz 
+            questions={content?.questions || []} 
+            topicId={topicId}
+            userId={userId}
+          />
         );
 
       default:

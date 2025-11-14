@@ -28,31 +28,40 @@ serve(async (req) => {
     // Generate all materials using OpenAI API
     const systemPrompt = `You are an educational content generator. Create comprehensive learning materials for the topic provided.
 
+IMPORTANT RULES:
+- Do NOT use emojis anywhere in the generated content
+- Write in clear, professional language
+- Be thorough and educational
+
 Generate materials in this exact JSON format:
 {
-  "summary": "A clear 2-3 paragraph summary of the topic",
+  "summary": "A comprehensive 4-6 paragraph summary covering key concepts, important details, practical applications, and learning outcomes. Make it detailed and informative.",
   "mindmap": {
     "nodes": [
-      {"id": "1", "label": "Central Topic", "level": 0},
-      {"id": "2", "label": "Key Concept 1", "level": 1},
-      {"id": "3", "label": "Detail 1", "level": 2}
+      {"id": "1", "label": "Central Topic", "level": 0, "color": "primary"},
+      {"id": "2", "label": "Key Concept 1", "level": 1, "color": "blue"},
+      {"id": "3", "label": "Detail 1a", "level": 2, "color": "blue"},
+      {"id": "4", "label": "Detail 1b", "level": 2, "color": "blue"},
+      {"id": "5", "label": "Key Concept 2", "level": 1, "color": "purple"}
     ],
     "edges": [
-      {"source": "1", "target": "2"},
-      {"source": "2", "target": "3"}
+      {"source": "1", "target": "2", "color": "blue"},
+      {"source": "2", "target": "3", "color": "blue"},
+      {"source": "2", "target": "4", "color": "blue"},
+      {"source": "1", "target": "5", "color": "purple"}
     ]
   },
   "flashcards": [
-    {"front": "Question 1", "back": "Answer 1"},
-    {"front": "Question 2", "back": "Answer 2"}
+    {"front": "Concise question or term", "back": "Clear, detailed answer or definition"},
+    {"front": "Key concept", "back": "Explanation with examples"}
   ],
   "quiz": {
     "questions": [
       {
         "question": "What is...",
-        "options": ["A", "B", "C", "D"],
-        "correct": 0,
-        "explanation": "Because..."
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctIndex": 0,
+        "explanation": "Detailed explanation of why this is correct"
       }
     ]
   },
@@ -65,11 +74,10 @@ Generate materials in this exact JSON format:
         "example": "example application"
       }
     ]
-  },
-  "explanation": "A brief spoken explanation of what was generated (2-3 sentences)"
+  }
 }
 
-Create 5-7 mindmap nodes, 5-8 flashcards, 4-6 quiz questions, and 5-7 key formulas or concepts.`;
+Create 8-12 mindmap nodes with multiple branches, 8-12 flashcards, 6-10 quiz questions, and 5-8 formulas/key concepts. Use colors: primary, blue, purple, pink, red, green for mindmap branches.`;
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
