@@ -9,6 +9,9 @@ import Dashboard from "./pages/Dashboard";
 import VoiceTutor from "./pages/VoiceTutor";
 import StartTopic from "./pages/StartTopic";
 import QA from "./pages/QA";
+import Achievements from "./pages/Achievements";
+import StudyGroups from "./pages/StudyGroups";
+import SpacedReview from "./pages/SpacedReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +29,9 @@ const App = () => (
           <Route path="/voice-tutor" element={<VoiceTutor />} />
           <Route path="/start-topic" element={<StartTopic />} />
           <Route path="/qa" element={<QA />} />
+          <Route path="/achievements" element={<Achievements />} />
+          <Route path="/study-groups" element={<StudyGroups />} />
+          <Route path="/spaced-review" element={<SpacedReview />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
