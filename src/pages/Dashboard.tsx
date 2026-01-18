@@ -12,7 +12,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import MaterialViewer from "@/components/MaterialViewer";
 import WeakTopicsSection from "@/components/WeakTopicsSection";
-import { BookOpen, FileText, Map, Layers } from "lucide-react";
+import XPProgressBar from "@/components/gamification/XPProgressBar";
+import DailyChallenges from "@/components/gamification/DailyChallenges";
+import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
+import { BookOpen, FileText, Map, Layers, Brain, Trophy, Flame } from "lucide-react";
+import { useGamification } from "@/hooks/useGamification";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -29,6 +33,10 @@ const Dashboard = () => {
     topicId: string;
   } | null>(null);
   const [hasCompletedQuiz, setHasCompletedQuiz] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  
+  const { stats, loading: statsLoading, refreshData } = useGamification(user?.id);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -37,6 +45,7 @@ const Dashboard = () => {
       } else {
         setUser(session.user);
         loadDashboardData(session.user.id);
+        checkOnboardingStatus(session.user.id);
       }
     });
 
@@ -50,6 +59,32 @@ const Dashboard = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const checkOnboardingStatus = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("user_onboarding")
+        .select("onboarding_completed")
+        .eq("user_id", userId)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      // Show onboarding if no record exists or not completed
+      if (!data || !data.onboarding_completed) {
+        setShowOnboarding(true);
+      }
+    } catch (error) {
+      console.error("Error checking onboarding:", error);
+    } finally {
+      setCheckingOnboarding(false);
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    refreshData();
+  };
 
   const loadDashboardData = async (userId: string) => {
     try {
@@ -168,25 +203,51 @@ const Dashboard = () => {
     }
   };
 
+  if (showOnboarding && user) {
+    return <OnboardingFlow userId={user.id} onComplete={handleOnboardingComplete} />;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex">
       <Sidebar user={user} />
       
       <div className="flex-1 ml-64">
         <div className="border-b border-border bg-gradient-to-r from-card/50 via-card/80 to-card/50 backdrop-blur-sm sticky top-0 z-10 shadow-sm">
-          <div className="px-8 py-8">
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-              {hasCompletedQuiz ? `Welcome back, ${user?.user_metadata?.name || "Student"}! 👋` : `Welcome, ${user?.user_metadata?.name || "Student"}! 👋`}
-            </h1>
-            <p className="text-muted-foreground mt-2">{hasCompletedQuiz ? "Continue your learning journey" : "Start your learning journey"}</p>
+          <div className="px-8 py-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
+                  {hasCompletedQuiz ? `Welcome back, ${user?.user_metadata?.name || "Student"}! 👋` : `Welcome, ${user?.user_metadata?.name || "Student"}! 👋`}
+                </h1>
+                <p className="text-muted-foreground mt-2">{hasCompletedQuiz ? "Continue your learning journey" : "Start your learning journey"}</p>
+              </div>
+              {/* Quick Stats */}
+              {stats && (
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2 bg-orange-500/10 px-4 py-2 rounded-full">
+                    <Flame className="w-5 h-5 text-orange-500" />
+                    <span className="font-bold">{stats.current_streak}</span>
+                    <span className="text-sm text-muted-foreground">day streak</span>
+                  </div>
+                  <Button variant="outline" onClick={() => navigate("/achievements")} className="gap-2">
+                    <Trophy className="w-4 h-4" />
+                    Achievements
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         <div className="px-8 py-8">
+          {/* XP Progress Bar */}
+          {user && <XPProgressBar userId={user.id} className="mb-8" />}
+          
           <Tabs defaultValue="dashboard" className="space-y-8">
             <TabsList className="bg-muted/50 p-1 rounded-xl">
               <TabsTrigger value="dashboard" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Dashboard</TabsTrigger>
               <TabsTrigger value="topics" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Topics</TabsTrigger>
+              <TabsTrigger value="challenges" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Challenges</TabsTrigger>
               <TabsTrigger value="next-steps" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm transition-all">Next Steps</TabsTrigger>
             </TabsList>
 
@@ -220,6 +281,10 @@ const Dashboard = () => {
                 </div>
                 {user && <ProgressChart userId={user.id} />}
               </div>
+            </TabsContent>
+
+            <TabsContent value="challenges" className="mt-8 animate-fade-in">
+              {user && <DailyChallenges userId={user.id} />}
             </TabsContent>
 
             <TabsContent value="topics" className="space-y-6 mt-8 animate-fade-in">

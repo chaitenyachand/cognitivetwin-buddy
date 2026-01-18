@@ -2,29 +2,30 @@ import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Target, Zap } from "lucide-react";
-
-interface DailyChallenge {
-  id: string;
-  title: string;
-  description: string;
-  xp_reward: number;
-  challenge_type: string;
-  requirement_value: number;
-  progress?: number;
-  completed?: boolean;
-}
+import { useGamification } from "@/hooks/useGamification";
 
 interface DailyChallengesProps {
-  challenges: DailyChallenge[];
+  userId: string;
 }
 
-const DailyChallenges = ({ challenges }: DailyChallengesProps) => {
+const DailyChallenges = ({ userId }: DailyChallengesProps) => {
+  const { dailyChallenges: challenges, loading } = useGamification(userId);
+
+  if (loading) {
+    return (
+      <Card className="border-none shadow-xl animate-pulse">
+        <CardContent className="pt-6 h-48" />
+      </Card>
+    );
+  }
+
   if (challenges.length === 0) {
     return (
       <Card className="border-none shadow-xl">
         <CardContent className="pt-6 text-center text-muted-foreground">
           <Target className="w-12 h-12 mx-auto mb-3 opacity-50" />
           <p>No challenges available today</p>
+          <p className="text-sm mt-2">Check back tomorrow for new challenges!</p>
         </CardContent>
       </Card>
     );

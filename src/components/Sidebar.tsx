@@ -1,6 +1,16 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Home, MessageSquare, LogOut, Plus } from "lucide-react";
+import { 
+  Home, 
+  MessageSquare, 
+  LogOut, 
+  Plus, 
+  Trophy, 
+  Users, 
+  Brain, 
+  Mic,
+  Sparkles
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { User } from "@supabase/supabase-js";
@@ -25,7 +35,11 @@ const Sidebar = ({ user }: SidebarProps) => {
   const navItems = [
     { path: "/dashboard", icon: Home, label: "Dashboard" },
     { path: "/start-topic", icon: Plus, label: "Start New Topic" },
+    { path: "/voice-tutor", icon: Mic, label: "Voice Tutor" },
+    { path: "/spaced-review", icon: Brain, label: "Spaced Review" },
     { path: "/qa", icon: MessageSquare, label: "Q&A" },
+    { path: "/achievements", icon: Trophy, label: "Achievements" },
+    { path: "/study-groups", icon: Users, label: "Study Groups" },
   ];
 
   return (

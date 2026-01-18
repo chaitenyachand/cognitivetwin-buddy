@@ -78,13 +78,7 @@ const Achievements = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <XPProgressBar
-              level={stats?.current_level || 1}
-              currentXp={progress.current}
-              requiredXp={progress.required}
-              percentage={progress.percentage}
-              streak={stats?.current_streak || 0}
-            />
+            {user && <XPProgressBar userId={user.id} />}
           </motion.div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -107,7 +101,7 @@ const Achievements = () => {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                <DailyChallenges challenges={dailyChallenges} />
+                {user && <DailyChallenges userId={user.id} />}
               </motion.div>
             </div>
 

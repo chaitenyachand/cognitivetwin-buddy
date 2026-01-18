@@ -1,20 +1,34 @@
 import { motion } from "framer-motion";
 import { Zap, Star, TrendingUp } from "lucide-react";
+import { useGamification } from "@/hooks/useGamification";
+import { cn } from "@/lib/utils";
 
 interface XPProgressBarProps {
-  level: number;
-  currentXp: number;
-  requiredXp: number;
-  percentage: number;
-  streak: number;
+  userId: string;
+  className?: string;
 }
 
-const XPProgressBar = ({ level, currentXp, requiredXp, percentage, streak }: XPProgressBarProps) => {
+const XPProgressBar = ({ userId, className }: XPProgressBarProps) => {
+  const { stats, getProgressToNextLevel, loading } = useGamification(userId);
+  const progress = getProgressToNextLevel();
+
+  if (loading || !stats) {
+    return (
+      <div className={cn("bg-card rounded-2xl p-4 border border-border animate-pulse h-24", className)} />
+    );
+  }
+
+  const { current_level: level, current_streak: streak, total_xp } = stats;
+  const { current: currentXp, required: requiredXp, percentage } = progress;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gradient-to-r from-card via-card to-card/80 rounded-2xl p-4 border border-border shadow-lg"
+      className={cn(
+        "bg-gradient-to-r from-card via-card to-card/80 rounded-2xl p-4 border border-border shadow-lg",
+        className
+      )}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -44,7 +58,7 @@ const XPProgressBar = ({ level, currentXp, requiredXp, percentage, streak }: XPP
           
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 rounded-full">
             <Zap className="w-4 h-4 text-primary" />
-            <span className="font-semibold text-primary">{currentXp.toLocaleString()} XP</span>
+            <span className="font-semibold text-primary">{total_xp.toLocaleString()} XP</span>
           </div>
         </div>
       </div>
@@ -61,7 +75,7 @@ const XPProgressBar = ({ level, currentXp, requiredXp, percentage, streak }: XPP
           </motion.div>
         </div>
         <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
-          <span>{currentXp} XP</span>
+          <span>{currentXp} XP this level</span>
           <span className="flex items-center gap-1">
             <TrendingUp className="w-3 h-3" />
             {requiredXp} XP to Level {level + 1}
