@@ -12,6 +12,7 @@ import QA from "./pages/QA";
 import Achievements from "./pages/Achievements";
 import StudyGroups from "./pages/StudyGroups";
 import SpacedReview from "./pages/SpacedReview";
+import StudyPlanner from "./pages/StudyPlanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/achievements" element={<Achievements />} />
           <Route path="/study-groups" element={<StudyGroups />} />
           <Route path="/spaced-review" element={<SpacedReview />} />
+          <Route path="/study-planner" element={<StudyPlanner />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
