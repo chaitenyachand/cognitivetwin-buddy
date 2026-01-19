@@ -9,7 +9,8 @@ import {
   Users, 
   Brain, 
   Mic,
-  Sparkles
+  Sparkles,
+  CalendarClock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +36,7 @@ const Sidebar = ({ user }: SidebarProps) => {
   const navItems = [
     { path: "/dashboard", icon: Home, label: "Dashboard" },
     { path: "/start-topic", icon: Plus, label: "Start New Topic" },
+    { path: "/study-planner", icon: CalendarClock, label: "Study Planner" },
     { path: "/voice-tutor", icon: Mic, label: "Voice Tutor" },
     { path: "/spaced-review", icon: Brain, label: "Spaced Review" },
     { path: "/qa", icon: MessageSquare, label: "Q&A" },
